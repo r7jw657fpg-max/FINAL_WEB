@@ -1,1 +1,547 @@
-<h1>Admin Bereich</h1>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
+#map { position: absolute; inset: 0; }
+
+#editor {
+  position: absolute; z-index: 20; top: 18px; left: 18px;
+  width: 360px; max-height: calc(100vh - 36px); overflow-y: auto;
+  padding: 22px; background: rgba(12,12,12,.96); color: white;
+  border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
+  box-shadow: 0 20px 70px rgba(0,0,0,.5);
+}
+
+.editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; }
+.kicker { font-size: 9px; letter-spacing: .18em; opacity: .45; }
+.editor-title { margin-top: 5px; font-size: 22px; font-weight: 400; }
+
+.section { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; }
+.section-title { font-size: 13px; }
+.section-subtitle { margin-top: 3px; font-size: 9px; opacity: .4; }
+
+button { font-family: inherit; cursor: pointer; }
+.small-button { padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 4px; background: white; color: black; font-size: 10px; }
+.small-button:hover { opacity: .8; }
+
+.layer-list { display: flex; flex-direction: column; gap: 6px; }
+.layer { overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; background: rgba(255,255,255,.035); }
+.layer-header { display: flex; align-items: center; gap: 9px; padding: 10px; cursor: pointer; }
+.layer-header:hover { background: rgba(255,255,255,.04); }
+.layer-color { width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; }
+.layer-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
+.visibility { border: 0; background: transparent; color: white; opacity: .6; cursor: pointer; }
+.layer-body { display: none; padding: 12px; border-top: 1px solid rgba(255,255,255,.08); }
+.layer.open .layer-body { display: block; }
+
+label { display: block; margin-bottom: 13px; font-size: 10px; opacity: .8; }
+input[type=text], textarea { display: block; width: 100%; margin-top: 6px; padding: 9px; border: 1px solid rgba(255,255,255,.18); border-radius: 4px; outline: none; background: #1c1c1c; color: white; font-family: inherit; }
+textarea { min-height: 80px; resize: vertical; }
+input[type=color] { display: block; width: 100%; height: 32px; margin-top: 6px; padding: 2px; border: 0; background: transparent; }
+input[type=range] { width: 100%; margin-top: 7px; }
+
+.actions { display: flex; gap: 6px; }
+.actions button { flex: 1; padding: 8px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
+.delete { background: rgba(255,69,58,.15) !important; color: #ff453a !important; }
+
+.hint { padding: 9px; border-radius: 4px; background: rgba(255,255,255,.04); font-size: 10px; line-height: 1.5; opacity: .5; }
+#status { font-size: 9px; opacity: .4; }
+
+#dialog { position: absolute; z-index: 100; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
+#dialog.active { display: flex; }
+.dialog-box { width: 340px; max-width: 90vw; padding: 25px; border-radius: 8px; background: #111; color: white; }
+.dialog-box h2 { margin: 5px 0 22px; font-size: 21px; font-weight: 400; }
+.dialog-actions { display: flex; gap: 7px; margin-top: 20px; }
+.dialog-actions button { flex: 1; padding: 9px; border: 0; border-radius: 4px; }
+
+.marker { width: 17px; height: 17px; border-radius: 50%; border: 3px solid black; background: white; cursor: pointer; transition: transform .15s ease; }
+.marker:hover { transform: scale(1.35); }
+.marker.adding { background: #ff453a; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<aside id="editor">
+  <div class="editor-header">
+    <div>
+      <div class="kicker">MAP PROJECT</div>
+      <div class="editor-title">Map Editor</div>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Laufwege</div>
+        <div class="section-subtitle">GPX-Routen</div>
+      </div>
+      <button id="gpxButton" class="small-button">+ GPX</button>
+    </div>
+    <input id="gpxInput" type="file" accept=".gpx" hidden>
+    <div id="routesList" class="layer-list"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Punkte</div>
+        <div class="section-subtitle">Orte und Inhalte</div>
+      </div>
+      <button id="addPoint" class="small-button">+ Punkt</button>
+    </div>
+    <div id="pointHint" class="hint">Klicke auf „+ Punkt" und anschließend auf die Karte.</div>
+    <div id="pointsList" class="layer-list"></div>
+  </section>
+
+  <div id="status">Karte wird geladen ...</div>
+</aside>
+
+<div id="dialog">
+  <div class="dialog-box">
+    <div class="kicker">NEW ROUTE</div>
+    <h2>GPX importieren</h2>
+    <label>Routenname<input id="routeName" type="text"></label>
+    <label>Farbe<input id="routeColor" type="color" value="#ff453a"></label>
+    <label>Linienstärke<input id="routeWidth" type="range" min="1" max="12" value="5"></label>
+    <div class="dialog-actions">
+      <button id="cancelGpx">Abbrechen</button>
+      <button id="confirmGpx">Importieren</button>
+    </div>
+  </div>
+</div>
+
+<script>
+mapboxgl.accessToken = "pk.eyJ1IjoibGVvbnJvY2EiLCJhIjoiY21wYmY1Yjl6MDNxczJxc2U0MzByNHA3OCJ9.-BaGJWtZCr3lKDKP1o9THQ";
+
+const map = new mapboxgl.Map({
+  container: "map",
+  style: "mapbox://styles/mapbox/dark-v11",
+  center: [8.5417, 47.3769],
+  zoom: 4
+});
+
+let points = [];
+let routes = [];
+let markers = [];
+let addingPoint = false;
+let pendingGpx = null;
+
+const routesList = document.getElementById("routesList");
+const pointsList = document.getElementById("pointsList");
+const addPoint = document.getElementById("addPoint");
+const pointHint = document.getElementById("pointHint");
+const statusElement = document.getElementById("status");
+
+function status(text) { statusElement.innerText = text; }
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+  });
+  if (!response.ok) throw new Error("API-Fehler: " + response.status);
+  return response.status === 204 ? null : response.json();
+}
+
+/* ===== ROUTES ===== */
+
+function routeLayerId(route) { return "route-" + route.id; }
+
+function drawRoute(route) {
+  const id = routeLayerId(route);
+  let coordinates = route.coordinates;
+  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+
+  if (map.getSource(id)) {
+    map.getSource(id).setData({ type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} });
+  } else {
+    map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
+    map.addLayer({
+      id, type: "line", source: id,
+      layout: { "line-cap": "round", "line-join": "round", visibility: route.visible === 0 ? "none" : "visible" },
+      paint: { "line-color": route.color || "#ff453a", "line-width": Number(route.width || 5), "line-opacity": .9 }
+    });
+  }
+}
+
+function removeRouteLayer(route) {
+  const id = routeLayerId(route);
+  if (map.getLayer(id)) map.removeLayer(id);
+  if (map.getSource(id)) map.removeSource(id);
+}
+
+function focusRoute(route) {
+  let coordinates = route.coordinates;
+  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+  if (!coordinates || coordinates.length < 2) return;
+  const bounds = new mapboxgl.LngLatBounds();
+  coordinates.forEach(c => bounds.extend(c));
+  map.fitBounds(bounds, { padding: 100, duration: 900 });
+}
+
+function renderRoutes() {
+  routesList.innerHTML = "";
+  if (routes.length === 0) {
+    routesList.innerHTML = '<div class="hint">Noch keine GPX-Routen importiert.</div>';
+    return;
+  }
+
+  routes.forEach(route => {
+    const layer = document.createElement("div");
+    layer.className = "layer";
+
+    const header = document.createElement("div");
+    header.className = "layer-header";
+    const color = document.createElement("div");
+    color.className = "layer-color";
+    color.style.background = route.color;
+    const name = document.createElement("div");
+    name.className = "layer-name";
+    name.innerText = route.name;
+    const visibility = document.createElement("button");
+    visibility.className = "visibility";
+    visibility.innerText = route.visible === 0 ? "○" : "●";
+
+    header.append(color, name, visibility);
+    layer.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "layer-body";
+
+    const nameLabel = document.createElement("label");
+    nameLabel.innerText = "Routenname";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = route.name;
+    nameLabel.appendChild(nameInput);
+
+    const colorLabel = document.createElement("label");
+    colorLabel.innerText = "Farbe";
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.value = route.color;
+    colorLabel.appendChild(colorInput);
+
+    const widthLabel = document.createElement("label");
+    widthLabel.innerText = "Linienstärke";
+    const widthInput = document.createElement("input");
+    widthInput.type = "range";
+    widthInput.min = "1"; widthInput.max = "12";
+    widthInput.value = route.width;
+    widthLabel.appendChild(widthInput);
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const focus = document.createElement("button");
+    focus.innerText = "Fokussieren";
+    const remove = document.createElement("button");
+    remove.innerText = "Löschen";
+    remove.className = "delete";
+    actions.append(focus, remove);
+
+    body.append(nameLabel, colorLabel, widthLabel, actions);
+    layer.appendChild(body);
+
+    header.addEventListener("click", () => layer.classList.toggle("open"));
+
+    visibility.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      route.visible = route.visible === 0 ? 1 : 0;
+      visibility.innerText = route.visible === 0 ? "○" : "●";
+      drawRoute(route);
+      await saveRoute(route);
+    });
+
+    async function persist() {
+      await saveRoute(route);
+      drawRoute(route);
+    }
+
+    nameInput.addEventListener("change", () => { route.name = nameInput.value; name.innerText = route.name; persist(); });
+    colorInput.addEventListener("change", () => { route.color = colorInput.value; color.style.background = route.color; persist(); });
+    widthInput.addEventListener("change", () => { route.width = Number(widthInput.value); persist(); });
+
+    focus.addEventListener("click", () => focusRoute(route));
+
+    remove.addEventListener("click", async () => {
+      if (!confirm("Diese Route wirklich löschen?")) return;
+      await api("/api/routes/" + route.id, { method: "DELETE" });
+      removeRouteLayer(route);
+      routes = routes.filter(r => r.id !== route.id);
+      renderRoutes();
+      status("Route gelöscht.");
+    });
+
+    routesList.appendChild(layer);
+  });
+}
+
+async function saveRoute(route) {
+  await api("/api/routes/" + route.id, {
+    method: "PUT",
+    body: JSON.stringify({ name: route.name, color: route.color, width: route.width, coordinates: route.coordinates, visible: route.visible !== 0 })
+  });
+  status("Route gespeichert.");
+}
+
+/* ===== POINTS ===== */
+
+function createMarker(point) {
+  const element = document.createElement("div");
+  element.className = "marker";
+  const marker = new mapboxgl.Marker({ element, draggable: true }).setLngLat([point.lng, point.lat]).addTo(map);
+  marker.pointId = point.id;
+  if (point.visible === 0) element.style.display = "none";
+
+  marker.on("dragend", async () => {
+    const position = marker.getLngLat();
+    point.lng = position.lng;
+    point.lat = position.lat;
+    await savePoint(point);
+    status("Punkt verschoben.");
+  });
+
+  markers.push(marker);
+}
+
+function clearMarkers() { markers.forEach(m => m.remove()); markers = []; }
+
+function renderPoints() {
+  pointsList.innerHTML = "";
+  if (points.length === 0) {
+    pointsList.innerHTML = '<div class="hint">Noch keine Punkte vorhanden.</div>';
+    return;
+  }
+
+  points.forEach(point => {
+    const layer = document.createElement("div");
+    layer.className = "layer";
+
+    const header = document.createElement("div");
+    header.className = "layer-header";
+    const color = document.createElement("div");
+    color.className = "layer-color";
+    color.style.background = "white";
+    const name = document.createElement("div");
+    name.className = "layer-name";
+    name.innerText = point.title || "Punkt";
+    const visibility = document.createElement("button");
+    visibility.className = "visibility";
+    visibility.innerText = point.visible === 0 ? "○" : "●";
+
+    header.append(color, name, visibility);
+    layer.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "layer-body";
+
+    const titleLabel = document.createElement("label");
+    titleLabel.innerText = "Titel";
+    const titleInput = document.createElement("input");
+    titleInput.type = "text"; titleInput.value = point.title || "";
+    titleLabel.appendChild(titleInput);
+
+    const textLabel = document.createElement("label");
+    textLabel.innerText = "Beschreibung";
+    const textInput = document.createElement("textarea");
+    textInput.value = point.text || "";
+    textLabel.appendChild(textInput);
+
+    const imageLabel = document.createElement("label");
+    imageLabel.innerText = "Bild URL";
+    const imageInput = document.createElement("input");
+    imageInput.type = "text"; imageInput.placeholder = "https://..."; imageInput.value = point.image_url || "";
+    imageLabel.appendChild(imageInput);
+
+    const pdfLabel = document.createElement("label");
+    pdfLabel.innerText = "PDF URL";
+    const pdfInput = document.createElement("input");
+    pdfInput.type = "text"; pdfInput.placeholder = "https://..."; pdfInput.value = point.pdf_url || "";
+    pdfLabel.appendChild(pdfInput);
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const focus = document.createElement("button");
+    focus.innerText = "Fokussieren";
+    const remove = document.createElement("button");
+    remove.innerText = "Löschen"; remove.className = "delete";
+    actions.append(focus, remove);
+
+    body.append(titleLabel, textLabel, imageLabel, pdfLabel, actions);
+    layer.appendChild(body);
+
+    header.addEventListener("click", () => layer.classList.toggle("open"));
+
+    visibility.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      point.visible = point.visible === 0 ? 1 : 0;
+      visibility.innerText = point.visible === 0 ? "○" : "●";
+      const marker = markers.find(m => m.pointId === point.id);
+      if (marker) marker.getElement().style.display = point.visible === 0 ? "none" : "block";
+      await savePoint(point);
+    });
+
+    async function persist() { await savePoint(point); }
+
+    titleInput.addEventListener("change", () => { point.title = titleInput.value; name.innerText = point.title || "Punkt"; persist(); });
+    textInput.addEventListener("change", () => { point.text = textInput.value; persist(); });
+    imageInput.addEventListener("change", () => { point.image_url = imageInput.value; persist(); });
+    pdfInput.addEventListener("change", () => { point.pdf_url = pdfInput.value; persist(); });
+
+    focus.addEventListener("click", () => map.flyTo({ center: [point.lng, point.lat], zoom: 12, duration: 900 }));
+
+    remove.addEventListener("click", async () => {
+      if (!confirm("Diesen Punkt wirklich löschen?")) return;
+      await api("/api/points/" + point.id, { method: "DELETE" });
+      const marker = markers.find(m => m.pointId === point.id);
+      if (marker) marker.remove();
+      markers = markers.filter(m => m.pointId !== point.id);
+      points = points.filter(p => p.id !== point.id);
+      renderPoints();
+      status("Punkt gelöscht.");
+    });
+
+    pointsList.appendChild(layer);
+  });
+}
+
+async function savePoint(point) {
+  await api("/api/points/" + point.id, {
+    method: "PUT",
+    body: JSON.stringify({ title: point.title, text: point.text, lng: point.lng, lat: point.lat, image_url: point.image_url, pdf_url: point.pdf_url, visible: point.visible !== 0 })
+  });
+  status("Punkt gespeichert.");
+}
+
+/* ===== ADD POINT MODE ===== */
+
+addPoint.addEventListener("click", () => {
+  addingPoint = !addingPoint;
+  if (addingPoint) {
+    addPoint.innerText = "× Abbrechen";
+    addPoint.style.background = "#ff453a"; addPoint.style.color = "white";
+    pointHint.innerText = "Klicke jetzt auf die Karte.";
+    status("Punktmodus aktiv.");
+  } else {
+    stopAddingPoint();
+  }
+});
+
+function stopAddingPoint() {
+  addingPoint = false;
+  addPoint.innerText = "+ Punkt";
+  addPoint.style.background = "white"; addPoint.style.color = "black";
+  pointHint.innerText = "Klicke auf „+ Punkt" und anschließend auf die Karte.";
+}
+
+map.on("click", async (event) => {
+  if (!addingPoint) return;
+
+  const newPoint = {
+    title: "Neuer Punkt", text: "", lng: event.lngLat.lng, lat: event.lngLat.lat,
+    image_url: "", pdf_url: "", visible: true
+  };
+
+  const created = await api("/api/points", { method: "POST", body: JSON.stringify(newPoint) });
+  const point = { ...newPoint, id: created.id, visible: 1 };
+  points.push(point);
+  createMarker(point);
+  renderPoints();
+  stopAddingPoint();
+  status("Punkt hinzugefügt.");
+});
+
+/* ===== GPX IMPORT ===== */
+
+document.getElementById("gpxButton").addEventListener("click", () => document.getElementById("gpxInput").click());
+
+document.getElementById("gpxInput").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const xml = new DOMParser().parseFromString(e.target.result, "application/xml");
+      const trackPoints = xml.getElementsByTagName("trkpt");
+      const coordinates = [];
+
+      for (let i = 0; i < trackPoints.length; i++) {
+        const lat = parseFloat(trackPoints[i].getAttribute("lat"));
+        const lon = parseFloat(trackPoints[i].getAttribute("lon"));
+        if (!isNaN(lat) && !isNaN(lon)) coordinates.push([lon, lat]);
+      }
+
+      if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
+
+      pendingGpx = { coordinates, filename: file.name.replace(/\.gpx$/i, "") };
+      document.getElementById("routeName").value = pendingGpx.filename;
+      document.getElementById("dialog").classList.add("active");
+    } catch (error) {
+      console.error(error);
+      status("GPX konnte nicht gelesen werden.");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+});
+
+document.getElementById("cancelGpx").addEventListener("click", () => {
+  pendingGpx = null;
+  document.getElementById("dialog").classList.remove("active");
+});
+
+document.getElementById("confirmGpx").addEventListener("click", async () => {
+  if (!pendingGpx) return;
+
+  const newRoute = {
+    name: document.getElementById("routeName").value.trim() || pendingGpx.filename,
+    color: document.getElementById("routeColor").value,
+    width: Number(document.getElementById("routeWidth").value),
+    coordinates: pendingGpx.coordinates,
+    visible: true
+  };
+
+  const created = await api("/api/routes", { method: "POST", body: JSON.stringify(newRoute) });
+  const route = { ...newRoute, id: created.id, visible: 1 };
+  routes.push(route);
+  drawRoute(route);
+  renderRoutes();
+  focusRoute(route);
+
+  pendingGpx = null;
+  document.getElementById("dialog").classList.remove("active");
+  status("GPX-Route importiert.");
+});
+
+/* ===== LOAD ===== */
+
+async function loadData() {
+  try {
+    points = await api("/api/points");
+    routes = await api("/api/routes");
+    routes.forEach(drawRoute);
+    points.forEach(createMarker);
+    renderRoutes();
+    renderPoints();
+    status("Karte bereit.");
+  } catch (error) {
+    console.error(error);
+    status("Fehler beim Laden der Daten.");
+  }
+}
+
+map.on("load", loadData);
+</script>
+
+</body>
+</html>
