@@ -74,3 +74,121 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   <div id="panelText"></div>
   <a id="panelPdf" href="#" target="_blank">PDF öffnen</a>
 </aside>
+
+<script>
+mapboxgl.accessToken = "pk.eyJ1IjoibGVvbnJvY2EiLCJhIjoiY21wYmY1Yjl6MDNxczJxc2U0MzByNHA3OCJ9.-BaGJWtZCr3lKDKP1o9THQ";
+
+const map = new mapboxgl.Map({
+  container: "map",
+  style: "mapbox://styles/mapbox/dark-v11",
+  center: [8.5417, 47.3769],
+  zoom: 4
+});
+
+const contentPanel = document.getElementById("contentPanel");
+const closePanel = document.getElementById("closePanel");
+const panelTitle = document.getElementById("panelTitle");
+const panelText = document.getElementById("panelText");
+const panelImage = document.getElementById("panelImage");
+const panelPdf = document.getElementById("panelPdf");
+
+closePanel.addEventListener("click", function () {
+  contentPanel.classList.remove("active");
+});
+
+function openPoint(point) {
+  panelTitle.innerText = point.title || "Punkt";
+  panelText.innerText = point.text || "";
+
+  if (point.image_url && point.image_url.trim()) {
+    panelImage.src = point.image_url;
+    panelImage.style.display = "block";
+  } else {
+    panelImage.src = "";
+    panelImage.style.display = "none";
+  }
+
+  if (point.pdf_url && point.pdf_url.trim()) {
+    panelPdf.href = point.pdf_url;
+    panelPdf.style.display = "inline-block";
+  } else {
+    panelPdf.style.display = "none";
+  }
+
+  contentPanel.classList.add("active");
+}
+
+function drawRoute(route) {
+  const id = "route-" + route.id;
+
+  if (map.getSource(id)) return;
+
+  let coordinates = route.coordinates;
+  if (typeof coordinates === "string") {
+    coordinates = JSON.parse(coordinates);
+  }
+
+  map.addSource(id, {
+    type: "geojson",
+    data: {
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: coordinates },
+      properties: {}
+    }
+  });
+
+  map.addLayer({
+    id: id,
+    type: "line",
+    source: id,
+    layout: {
+      "line-cap": "round",
+      "line-join": "round",
+      visibility: route.visible === 0 ? "none" : "visible"
+    },
+    paint: {
+      "line-color": route.color || "#ff453a",
+      "line-width": Number(route.width || 5),
+      "line-opacity": .9
+    }
+  });
+}
+
+function createMarker(point) {
+  if (point.visible === 0) return;
+
+  const element = document.createElement("div");
+  element.className = "marker";
+
+  new mapboxgl.Marker({ element: element })
+    .setLngLat([point.lng, point.lat])
+    .addTo(map);
+
+  element.addEventListener("click", function (event) {
+    event.stopPropagation();
+    openPoint(point);
+  });
+}
+
+async function loadData() {
+  try {
+    const [pointsResponse, routesResponse] = await Promise.all([
+      fetch("/api/points"),
+      fetch("/api/routes")
+    ]);
+
+    const points = await pointsResponse.json();
+    const routes = await routesResponse.json();
+
+    routes.forEach(drawRoute);
+    points.forEach(createMarker);
+  } catch (error) {
+    console.error("Konnte Daten nicht laden:", error);
+  }
+}
+
+map.on("load", loadData);
+</script>
+
+</body>
+</html>
