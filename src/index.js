@@ -16,11 +16,10 @@ export default {
         }
       }
 
-           return new Response(
-        "Debug-Info: ADMIN_PASSWORD ist " +
-        (env.ADMIN_PASSWORD === undefined ? "NICHT gesetzt (Binding fehlt)" : "gesetzt, Länge: " + env.ADMIN_PASSWORD.length),
-        { status: 401 }
-      );
+          return new Response("Zugriff verweigert", {
+        status: 401,
+        headers: { "WWW-Authenticate": 'Basic realm="Admin Bereich"' },
+      });
     }
 
     return env.ASSETS.fetch(request);
