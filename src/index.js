@@ -10,19 +10,13 @@ export default {
         if (scheme === "Basic" && encoded) {
           const decoded = atob(encoded);
           const [, password] = decoded.split(":");
-                if (password === env.ADMIN_PASSWORD) {
-        return env.ASSETS.fetch(request);
-      }
-      return new Response(
-        "Debug: eingegebenes Passwort hat Länge " + password.length +
-        ", gespeichertes Passwort hat Länge " +
-        (env.ADMIN_PASSWORD ? env.ADMIN_PASSWORD.length : "undefined (nicht gesetzt)"),
-        { status: 401 }
-      );
+          if (password === env.ADMIN_PASSWORD) {
+            return env.ASSETS.fetch(request);
+          }
         }
       }
 
-          return new Response("Zugriff verweigert", {
+      return new Response("Zugriff verweigert", {
         status: 401,
         headers: { "WWW-Authenticate": 'Basic realm="Admin Bereich"' },
       });
