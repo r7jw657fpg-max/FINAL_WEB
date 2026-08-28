@@ -107,4 +107,27 @@ export default {
       const routeId = url.pathname.split("/api/routes/")[1];
 
       if (method === "PUT") {
-        if
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        await env.DB.prepare(
+          "UPDATE routes SET name=?, color=?, width=?, coordinates=?, visible=?, updated_at=? WHERE id=?"
+        ).bind(
+          body.name || "", body.color || "#ff453a", Number(body.width || 5),
+          JSON.stringify(body.coordinates || []),
+          body.visible === false ? 0 : 1, new Date().toISOString(), routeId
+        ).run();
+        return json({ ok: true });
+      }
+
+      if (method === "DELETE") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        await env.DB.prepare("DELETE FROM routes WHERE id = ?").bind(routeId).run();
+        return json({ ok: true });
+      }
+
+      return new Response("Method not allowed", { status: 405 });
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+};
