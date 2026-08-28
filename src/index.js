@@ -10,9 +10,15 @@ export default {
         if (scheme === "Basic" && encoded) {
           const decoded = atob(encoded);
           const [, password] = decoded.split(":");
-          if (password === env.ADMIN_PASSWORD) {
-            return env.ASSETS.fetch(request);
-          }
+                if (password === env.ADMIN_PASSWORD) {
+        return env.ASSETS.fetch(request);
+      }
+      return new Response(
+        "Debug: eingegebenes Passwort hat Länge " + password.length +
+        ", gespeichertes Passwort hat Länge " +
+        (env.ADMIN_PASSWORD ? env.ADMIN_PASSWORD.length : "undefined (nicht gesetzt)"),
+        { status: 401 }
+      );
         }
       }
 
