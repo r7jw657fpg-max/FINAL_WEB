@@ -208,6 +208,9 @@ function drawRoute(route) {
 
   if (map.getSource(id)) {
     map.getSource(id).setData({ type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} });
+    map.setPaintProperty(id, "line-color", route.color || "#ff453a");
+    map.setPaintProperty(id, "line-width", Number(route.width || 5));
+    map.setLayoutProperty(id, "visibility", route.visible === 0 ? "none" : "visible");
   } else {
     map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
     map.addLayer({
@@ -394,7 +397,7 @@ function buildPointLayer(point, options) {
 
   layer.appendChild(body);
 
-    header.addEventListener("click", async () => {
+  header.addEventListener("click", async () => {
     layer.classList.toggle("open");
     if (layer.classList.contains("open") && !entriesLoaded) {
       try {
