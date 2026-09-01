@@ -592,7 +592,7 @@ function renderRoutes() {
         addingPointForRoute = route;
         addObjectButton.innerText = "× Abbrechen";
         objectsHint.style.display = "block";
-        status("Objektmodus aktiv für Trace „" + route.name + "".");
+         status(`Objektmodus aktiv für Trace „${route.name}".`);
       }
     });
 
@@ -696,7 +696,7 @@ map.on("click", async (event) => {
   createMarker(point);
   addingPointForRoute = null;
   renderAll();
-  status("Objekt zu „" + route.name + "" hinzugefügt.");
+  status(`Objekt zu „${route.name}" hinzugefügt.`);
 });
 
 /* ===== GPX IMPORT ===== */
