@@ -206,10 +206,11 @@ async function openTracePanels(route) {
 
     spiderLayer.appendChild(el);
 
+        const panelRect = el.getBoundingClientRect();
     const node = {
       el, anchorLngLat, routeColor,
       anchorX: anchorScreen.x, anchorY: anchorScreen.y,
-      radius, collideRadius: 130,
+      radius, collideRadius: Math.max(panelRect.width, panelRect.height) / 2 + 15,
       x: anchorScreen.x + Math.cos(angle) * radius,
       y: anchorScreen.y + Math.sin(angle) * radius
     };
