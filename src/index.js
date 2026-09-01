@@ -170,7 +170,7 @@ export default {
           "INSERT INTO routes (id, name, color, width, coordinates, visible, updated_at, duration_minutes, distance_km, notes, video_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         ).bind(
           routeId, body.name || "Trace", body.color || "#ff453a",
-          Number(body.width || 5), JSON.stringify(body.coordinates || []),
+          Number(body.width || 5), (typeof body.coordinates === "string" ? body.coordinates : JSON.stringify(body.coordinates || [])),
           body.visible === false ? 0 : 1, new Date().toISOString(),
           body.duration_minutes || null, body.distance_km || null,
           body.notes || "", body.video_url || ""
