@@ -18,8 +18,11 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 .spider-panel {
   position: absolute;
   width: 230px;
-  max-height: 300px;
-  overflow-y: auto;
+  height: 260px;
+  min-width: 180px;
+  min-height: 120px;
+  overflow: auto;
+  resize: both;
   background: rgba(12,12,12,.96);
   color: white;
   border: 1px solid rgba(255,255,255,.15);
@@ -30,6 +33,15 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   transform: translate(-50%, -50%);
   font-size: 11px;
 }
+.panel-drag-handle {
+  height: 14px;
+  margin: -16px -16px 10px -16px;
+  border-radius: 8px 8px 0 0;
+  background: rgba(255,255,255,.06);
+  cursor: grab;
+  touch-action: none;
+}
+.panel-drag-handle:active { cursor: grabbing; }
 .panel-kicker { font-size: 8px; letter-spacing: .15em; opacity: .5; margin-bottom: 6px; text-transform: uppercase; }
 .spider-panel h3 { margin: 0 0 10px; font-size: 15px; font-weight: 400; }
 .spider-panel p { margin: 0 0 6px; opacity: .8; line-height: 1.5; white-space: pre-wrap; }
@@ -138,10 +150,39 @@ function drawLines() {
     line.setAttribute("x2", n.x);
     line.setAttribute("y2", n.y);
     line.setAttribute("stroke", n.routeColor);
-    line.setAttribute("stroke-width", "1.5");
-    line.setAttribute("stroke-opacity", "0.75");
+    line.setAttribute("stroke-width", "3");
+    line.setAttribute("stroke-opacity", "0.8");
     spiderSvg.appendChild(line);
   });
+}
+
+function makeDraggable(panel) {
+  const handle = panel.el.querySelector(".panel-drag-handle");
+  if (!handle) return;
+
+  let dragging = false;
+  let startX = 0, startY = 0, startPanelX = 0, startPanelY = 0;
+
+  handle.addEventListener("pointerdown", (event) => {
+    dragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    startPanelX = panel.x;
+    startPanelY = panel.y;
+    handle.setPointerCapture(event.pointerId);
+  });
+
+  handle.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    panel.x = startPanelX + (event.clientX - startX);
+    panel.y = startPanelY + (event.clientY - startY);
+    panel.el.style.left = panel.x + "px";
+    panel.el.style.top = panel.y + "px";
+    drawLines();
+  });
+
+  handle.addEventListener("pointerup", () => { dragging = false; });
+  handle.addEventListener("pointercancel", () => { dragging = false; });
 }
 
 async function openTracePanels(route) {
@@ -160,8 +201,8 @@ async function openTracePanels(route) {
 
   const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
   const routeColor = route.color || "#ff453a";
-  const circumferencePerPanel = 270;
-  const radius = Math.max(220, (items.length * circumferencePerPanel) / (Math.PI * 2));
+  const circumferencePerPanel = 340;
+  const radius = Math.max(260, (items.length * circumferencePerPanel) / (Math.PI * 2));
 
   panels = items.map((item, index) => {
     const angle = (index / items.length) * Math.PI * 2 - Math.PI / 2;
@@ -172,8 +213,10 @@ async function openTracePanels(route) {
     el.className = "spider-panel";
     el.style.borderTopColor = routeColor;
 
+    const dragHandleHtml = '<div class="panel-drag-handle"></div>';
+
     if (item.type === "statistics") {
-      el.innerHTML =
+      el.innerHTML = dragHandleHtml +
         '<button class="panel-close">×</button>' +
         '<div class="panel-kicker">TRACE STATISTICS</div>' +
         '<h3>' + escapeHtml(route.name) + '</h3>' +
@@ -183,7 +226,7 @@ async function openTracePanels(route) {
         (route.video_url ? '<video class="spider-video" controls src="' + route.video_url + '"></video>' : '');
     } else {
       const p = item.point;
-      el.innerHTML =
+      el.innerHTML = dragHandleHtml +
         '<button class="panel-close">×</button>' +
         '<div class="panel-kicker">' + (TYPE_LABELS[p.type] || p.type) + '</div>' +
         '<h3>' + escapeHtml(p.title || 'Objekt') + '</h3>' +
@@ -218,6 +261,8 @@ async function openTracePanels(route) {
       panels = panels.filter(n => n.el !== el);
       drawLines();
     });
+
+    makeDraggable(panel);
 
     return panel;
   });
