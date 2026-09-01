@@ -29,36 +29,27 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   to { transform: translateX(-50%); }
 }
 
-#spiderSvg { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; z-index: 24; pointer-events: none; }
+#spiderSvg { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; z-index: 24; pointer-events: none; overflow: visible; }
 #spiderLayer { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; z-index: 25; pointer-events: none; }
 
 .spider-panel {
   position: absolute;
-  width: 230px;
-  height: 260px;
-  min-width: 180px;
-  min-height: 120px;
+  width: 280px;
+  height: 320px;
+  min-width: 200px;
+  min-height: 140px;
   overflow: auto;
   resize: both;
   background: rgba(12,12,12,.96);
   color: white;
-  border: 1px solid rgba(255,255,255,.15);
-  border-top: 3px solid transparent;
+  border: 4px solid transparent;
   border-radius: 8px;
   padding: 16px;
   pointer-events: all;
   transform: translate(-50%, -50%);
   font-size: 11px;
+  cursor: default;
 }
-.panel-drag-handle {
-  height: 14px;
-  margin: -16px -16px 10px -16px;
-  border-radius: 8px 8px 0 0;
-  background: rgba(255,255,255,.06);
-  cursor: grab;
-  touch-action: none;
-}
-.panel-drag-handle:active { cursor: grabbing; }
 .panel-kicker { font-size: 8px; letter-spacing: .15em; opacity: .5; margin-bottom: 6px; text-transform: uppercase; }
 .spider-panel h3 { margin: 0 0 10px; font-size: 15px; font-weight: 400; }
 .spider-panel p { margin: 0 0 6px; opacity: .8; line-height: 1.5; white-space: pre-wrap; }
@@ -188,32 +179,32 @@ function drawLines() {
 }
 
 function makeDraggable(panel) {
-  const handle = panel.el.querySelector(".panel-drag-handle");
-  if (!handle) return;
-
+  const el = panel.el;
   let dragging = false;
   let startX = 0, startY = 0, startPanelX = 0, startPanelY = 0;
 
-  handle.addEventListener("pointerdown", (event) => {
+  el.addEventListener("pointerdown", (event) => {
+    if (event.target.closest(".panel-close")) return;
+    if (event.offsetY > 12 || event.offsetX < 0) return;
     dragging = true;
     startX = event.clientX;
     startY = event.clientY;
     startPanelX = panel.x;
     startPanelY = panel.y;
-    handle.setPointerCapture(event.pointerId);
+    el.setPointerCapture(event.pointerId);
   });
 
-  handle.addEventListener("pointermove", (event) => {
+  el.addEventListener("pointermove", (event) => {
     if (!dragging) return;
     panel.x = startPanelX + (event.clientX - startX);
     panel.y = startPanelY + (event.clientY - startY);
-    panel.el.style.left = panel.x + "px";
-    panel.el.style.top = panel.y + "px";
+    el.style.left = panel.x + "px";
+    el.style.top = panel.y + "px";
     drawLines();
   });
 
-  handle.addEventListener("pointerup", () => { dragging = false; });
-  handle.addEventListener("pointercancel", () => { dragging = false; });
+  el.addEventListener("pointerup", () => { dragging = false; });
+  el.addEventListener("pointercancel", () => { dragging = false; });
 }
 
 async function openTracePanels(route) {
@@ -232,8 +223,8 @@ async function openTracePanels(route) {
 
   const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
   const routeColor = route.color || "#ff453a";
-  const circumferencePerPanel = 340;
-  const radius = Math.max(260, (items.length * circumferencePerPanel) / (Math.PI * 2));
+  const circumferencePerPanel = 380;
+  const radius = Math.max(280, (items.length * circumferencePerPanel) / (Math.PI * 2));
 
   panels = items.map((item, index) => {
     const angle = (index / items.length) * Math.PI * 2 - Math.PI / 2;
@@ -242,12 +233,10 @@ async function openTracePanels(route) {
 
     const el = document.createElement("div");
     el.className = "spider-panel";
-    el.style.borderTopColor = routeColor;
-
-    const dragHandleHtml = '<div class="panel-drag-handle"></div>';
+    el.style.borderColor = routeColor;
 
     if (item.type === "statistics") {
-      el.innerHTML = dragHandleHtml +
+      el.innerHTML =
         '<button class="panel-close">×</button>' +
         '<div class="panel-kicker">TRACE STATISTICS</div>' +
         '<h3>' + escapeHtml(route.name) + '</h3>' +
@@ -257,7 +246,7 @@ async function openTracePanels(route) {
         (route.video_url ? '<video class="spider-video" controls src="' + route.video_url + '"></video>' : '');
     } else {
       const p = item.point;
-      el.innerHTML = dragHandleHtml +
+      el.innerHTML =
         '<button class="panel-close">×</button>' +
         '<div class="panel-kicker">' + (TYPE_LABELS[p.type] || p.type) + '</div>' +
         '<h3>' + escapeHtml(p.title || 'Objekt') + '</h3>' +
