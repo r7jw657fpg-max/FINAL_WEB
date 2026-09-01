@@ -394,12 +394,17 @@ function buildPointLayer(point, options) {
 
   layer.appendChild(body);
 
-  header.addEventListener("click", async () => {
+    header.addEventListener("click", async () => {
     layer.classList.toggle("open");
     if (layer.classList.contains("open") && !entriesLoaded) {
-      entriesLoaded = true;
-      await loadEntries(point);
-      renderEntries(entriesBox, point);
+      try {
+        await loadEntries(point);
+        entriesLoaded = true;
+        renderEntries(entriesBox, point);
+      } catch (error) {
+        console.error(error);
+        entriesBox.innerHTML = '<div class="hint">Fehler beim Laden: ' + error.message + '</div>';
+      }
     }
   });
 
