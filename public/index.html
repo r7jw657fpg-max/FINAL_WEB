@@ -156,7 +156,15 @@ document.getElementById("lightboxClose").addEventListener("click", closeLightbox
 lightbox.addEventListener("click", (event) => {
   if (event.target === lightbox) closeLightbox();
 });
-
+function parseCoordinates(value) {
+  let result = value;
+  let tries = 0;
+  while (typeof result === "string" && tries < 5) {
+    try { result = JSON.parse(result); } catch (e) { break; }
+    tries++;
+  }
+  return result;
+}
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.innerText = str || "";
@@ -181,8 +189,7 @@ function applyAspectRatio(el, aspect) {
 
 function drawRoute(route) {
   const id = "route-" + route.id;
-  let coordinates = route.coordinates;
-  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+ let coordinates = parseCoordinates(route.coordinates);
 
   map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
   map.addLayer({
@@ -204,8 +211,7 @@ function createMarker(point) {
 }
 
 function routeCentroid(route) {
-  let coordinates = route.coordinates;
-  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+  let coordinates = parseCoordinates(route.coordinates);
   const bounds = new mapboxgl.LngLatBounds();
   coordinates.forEach(c => bounds.extend(c));
   const center = bounds.getCenter();
@@ -275,8 +281,7 @@ async function openTracePanels(route) {
 
   const relatedPoints = points.filter(p => p.route_id === route.id);
 
-  let routeCoordinates = route.coordinates;
-  if (typeof routeCoordinates === "string") routeCoordinates = JSON.parse(routeCoordinates);
+    let routeCoordinates = parseCoordinates(route.coordinates);
   const bounds = new mapboxgl.LngLatBounds();
   routeCoordinates.forEach(c => bounds.extend(c));
   relatedPoints.forEach(p => bounds.extend([p.lng, p.lat]));
