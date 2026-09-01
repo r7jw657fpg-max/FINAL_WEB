@@ -38,34 +38,41 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   height: 260px;
   min-width: 180px;
   min-height: 120px;
-  overflow: auto;
+  overflow: hidden;
   resize: both;
-  color: white;
-  border: 8px solid transparent;
-  border-radius: 4px;
-  padding: 14px;
+  padding: 8px;
+  border-radius: 6px;
   pointer-events: all;
   transform: translate(-50%, -50%);
-  font-size: 11px;
   cursor: default;
-  background:
-    linear-gradient(rgba(12,12,12,.97), rgba(12,12,12,.97)) padding-box,
-    repeating-linear-gradient(45deg, #050505 0 14px, #ffd400 14px 28px) border-box;
-  background-position: 0 0, 0 0;
-  animation: caution-scroll 1.2s linear infinite;
+  background-image: repeating-linear-gradient(45deg, #050505 0 18px, #ffd400 18px 36px);
+  background-size: 400% 400%;
+  animation: caution-scroll 5s linear infinite;
 }
 @keyframes caution-scroll {
-  from { background-position: 0 0, 0 0; }
-  to { background-position: 0 0, 56px 0; }
+  from { background-position: 0 0; }
+  to { background-position: 72px 0; }
+}
+.spider-panel-inner {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0c0c0c;
+  border-radius: 3px;
+  padding: 14px;
+  position: relative;
+  font-size: 11px;
+  color: white;
 }
 .panel-kicker { font-size: 8px; letter-spacing: .15em; opacity: .5; margin-bottom: 6px; text-transform: uppercase; }
-.spider-panel h3 { margin: 0 0 10px; font-size: 15px; font-weight: 400; }
-.spider-panel p { margin: 0 0 6px; opacity: .8; line-height: 1.5; white-space: pre-wrap; }
-.panel-close { position: absolute; top: 8px; right: 10px; background: none; border: 0; color: white; font-size: 18px; cursor: pointer; opacity: .6; z-index: 2; }
+.spider-panel-inner h3 { margin: 0 0 10px; font-size: 15px; font-weight: 400; }
+.spider-panel-inner p { margin: 0 0 6px; opacity: .8; line-height: 1.5; white-space: pre-wrap; }
+.panel-close { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: white; font-size: 18px; cursor: pointer; opacity: .6; }
 .panel-close:hover { opacity: 1; }
 .spider-entry { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
 .spider-entry:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
-.spider-entry img { width: 100%; border-radius: 4px; margin-bottom: 6px; display: block; }
+.spider-entry img { width: 100%; border-radius: 4px; margin-bottom: 6px; display: block; cursor: pointer; }
 .spider-video { width: 100%; border-radius: 4px; margin-top: 8px; }
 
 #closeAllPanels {
@@ -74,6 +81,19 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   padding: 9px 14px; border: 0; border-radius: 4px;
   background: white; color: black; font-size: 10px; cursor: pointer;
 }
+
+#lightbox {
+  position: fixed; inset: 0; z-index: 50;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.92);
+}
+#lightbox.active { display: flex; }
+#lightboxContent img { max-width: 90vw; max-height: 90vh; border-radius: 4px; display: block; }
+#lightboxClose {
+  position: absolute; top: 20px; right: 26px;
+  background: none; border: 0; color: white; font-size: 34px; cursor: pointer; opacity: .8;
+}
+#lightboxClose:hover { opacity: 1; }
 </style>
 </head>
 <body>
@@ -89,6 +109,11 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 <svg id="spiderSvg"></svg>
 <div id="spiderLayer"></div>
 <button id="closeAllPanels">Alle Panels schließen</button>
+
+<div id="lightbox">
+  <button id="lightboxClose">×</button>
+  <div id="lightboxContent"></div>
+</div>
 
 <div class="marquee-bar marquee-bottom">
   <div class="marquee-track">
@@ -116,6 +141,21 @@ let panels = [];
 const spiderLayer = document.getElementById("spiderLayer");
 const spiderSvg = document.getElementById("spiderSvg");
 const closeAllButton = document.getElementById("closeAllPanels");
+const lightbox = document.getElementById("lightbox");
+const lightboxContent = document.getElementById("lightboxContent");
+
+function openLightbox(url) {
+  lightboxContent.innerHTML = '<img src="' + url + '">';
+  lightbox.classList.add("active");
+}
+function closeLightbox() {
+  lightbox.classList.remove("active");
+  lightboxContent.innerHTML = "";
+}
+document.getElementById("lightboxClose").addEventListener("click", closeLightbox);
+lightbox.addEventListener("click", (event) => {
+  if (event.target === lightbox) closeLightbox();
+});
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -208,8 +248,7 @@ function makeDraggable(panel) {
   let startX = 0, startY = 0, startPanelX = 0, startPanelY = 0;
 
   el.addEventListener("pointerdown", (event) => {
-    if (event.target.closest(".panel-close")) return;
-    if (event.offsetY > 12 || event.offsetY < 0) return;
+    if (event.target !== el) return;
     dragging = true;
     startX = event.clientX;
     startY = event.clientY;
@@ -258,8 +297,12 @@ async function openTracePanels(route) {
     const el = document.createElement("div");
     el.className = "spider-panel";
 
+    const inner = document.createElement("div");
+    inner.className = "spider-panel-inner";
+    el.appendChild(inner);
+
     if (item.type === "statistics") {
-      el.innerHTML =
+      inner.innerHTML =
         '<button class="panel-close">×</button>' +
         '<div class="panel-kicker">TRACE STATISTICS</div>' +
         '<h3>' + escapeHtml(route.name) + '</h3>' +
@@ -269,31 +312,38 @@ async function openTracePanels(route) {
         (route.video_url ? '<video class="spider-video" controls src="' + route.video_url + '"></video>' : '');
 
       if (route.video_url) {
-        const video = el.querySelector(".spider-video");
+        const video = inner.querySelector(".spider-video");
         video.addEventListener("loadedmetadata", () => {
           applyAspectRatio(el, video.videoWidth / video.videoHeight);
         });
       }
     } else {
       const p = item.point;
-      el.innerHTML =
+      inner.innerHTML =
         '<button class="panel-close">×</button>' +
         '<div class="panel-kicker">' + (TYPE_LABELS[p.type] || p.type) + '</div>' +
         '<h3>' + escapeHtml(p.title || 'Objekt') + '</h3>' +
         '<div class="entries-container"><p style="opacity:.5;">Lädt ...</p></div>';
 
       loadPointEntries(p).then(entries => {
-        const container = el.querySelector(".entries-container");
+        const container = inner.querySelector(".entries-container");
         if (!entries.length) {
           container.innerHTML = '<p style="opacity:.5;">Keine Einträge.</p>';
           return;
         }
         container.innerHTML = entries.map(entry =>
           '<div class="spider-entry">' +
-          (entry.image_url ? '<img src="' + entry.image_url + '">' : '') +
+          (entry.image_url ? '<img src="' + entry.image_url + '" data-full="' + entry.image_url + '">' : '') +
           (entry.note ? '<p>' + escapeHtml(entry.note) + '</p>' : '') +
           '</div>'
         ).join("");
+
+        container.querySelectorAll(".spider-entry img").forEach(img => {
+          img.addEventListener("click", (event) => {
+            event.stopPropagation();
+            openLightbox(img.dataset.full);
+          });
+        });
 
         const firstImage = entries.find(e => e.image_url);
         if (firstImage) {
@@ -313,7 +363,7 @@ async function openTracePanels(route) {
 
     const panel = { el, anchorLngLat, routeColor, x, y };
 
-    el.querySelector(".panel-close").addEventListener("click", () => {
+    inner.querySelector(".panel-close").addEventListener("click", () => {
       el.remove();
       panels = panels.filter(n => n.el !== el);
       drawLines();
