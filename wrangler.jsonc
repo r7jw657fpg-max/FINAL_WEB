@@ -13,5 +13,11 @@
       "database_name": "karten-db",
       "database_id": "b1f564d2-4e0d-4d2b-baef-1e08e18de470"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "karten-dateien"
+    }
   ]
 }
