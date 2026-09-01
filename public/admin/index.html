@@ -98,7 +98,7 @@ input[type=range] { width: 100%; margin-top: 7px; }
       </div>
       <button id="addPoint" class="small-button">+ Punkt</button>
     </div>
-    <div id="pointHint" class="hint">Klicke auf „+ Punkt" und anschließend auf die Karte.</div>
+    <div id="pointHint" class="hint">Hinweis: Auf Knopf klicken, dann auf die Karte klicken.</div>
     <div id="pointsList" class="layer-list"></div>
   </section>
 
@@ -429,7 +429,7 @@ addPoint.addEventListener("click", () => {
   if (addingPoint) {
     addPoint.innerText = "× Abbrechen";
     addPoint.style.background = "#ff453a"; addPoint.style.color = "white";
-    pointHint.innerText = "Klicke jetzt auf die Karte.";
+    pointHint.innerText = "Jetzt auf die Karte klicken.";
     status("Punktmodus aktiv.");
   } else {
     stopAddingPoint();
@@ -440,7 +440,7 @@ function stopAddingPoint() {
   addingPoint = false;
   addPoint.innerText = "+ Punkt";
   addPoint.style.background = "white"; addPoint.style.color = "black";
-  pointHint.innerText = "Klicke auf „+ Punkt" und anschließend auf die Karte.";
+  pointHint.innerText = "Hinweis: Auf Knopf klicken, dann auf die Karte klicken.";
 }
 
 map.on("click", async (event) => {
