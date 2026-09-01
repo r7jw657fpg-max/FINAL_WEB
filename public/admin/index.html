@@ -319,7 +319,7 @@ function renderEntries(container, point) {
   container.appendChild(form);
 }
 
-/* ===== POINT LAYER (wiederverwendbar: verschachtelt in Trace ODER in "ohne Trace") ===== */
+/* ===== POINT LAYER (wiederverwendbar) ===== */
 
 function buildPointLayer(point, options) {
   const layer = document.createElement("div");
@@ -546,8 +546,6 @@ function renderRoutes() {
 
     body.append(nameLabel, colorLabel, widthLabel, durationLabel, distanceLabel, notesLabel, videoLabel, actions);
 
-    /* ===== Verschachtelte Objekte dieser Trace ===== */
-
     const objectsHeader = document.createElement("div");
     objectsHeader.className = "objects-header";
     const objectsTitle = document.createElement("div");
@@ -592,7 +590,7 @@ function renderRoutes() {
         addingPointForRoute = route;
         addObjectButton.innerText = "× Abbrechen";
         objectsHint.style.display = "block";
-         status(`Objektmodus aktiv für Trace „${route.name}".`);
+        status(`Objektmodus aktiv für Trace „${route.name}".`);
       }
     });
 
