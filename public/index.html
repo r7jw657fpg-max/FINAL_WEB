@@ -15,68 +15,54 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   border-radius: 50%;
   border: 3px solid black;
   background: white;
-  cursor: pointer;
-  transition: transform .15s ease;
 }
-.marker:hover { transform: scale(1.35); }
 
-#contentPanel {
-  position: absolute; z-index: 30;
-  top: 0; right: 0;
-  width: 420px; max-width: 90vw; height: 100%;
+#spiderSvg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 24; pointer-events: none; }
+#spiderLayer { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
+
+.spider-panel {
+  position: absolute;
+  width: 230px;
+  max-height: 300px;
   overflow-y: auto;
-  padding: 35px;
-  background: rgba(8,8,8,.97);
+  background: rgba(12,12,12,.96);
   color: white;
-  transform: translateX(100%);
-  transition: transform .35s ease;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px;
+  padding: 16px;
+  pointer-events: all;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
 }
-#contentPanel.active { transform: translateX(0); }
+.panel-kicker { font-size: 8px; letter-spacing: .15em; opacity: .5; margin-bottom: 6px; text-transform: uppercase; }
+.spider-panel h3 { margin: 0 0 10px; font-size: 15px; font-weight: 400; }
+.spider-panel p { margin: 0 0 6px; opacity: .8; line-height: 1.5; white-space: pre-wrap; }
+.panel-close { position: absolute; top: 8px; right: 10px; background: none; border: 0; color: white; font-size: 18px; cursor: pointer; opacity: .6; }
+.panel-close:hover { opacity: 1; }
+.spider-entry { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.spider-entry:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.spider-entry img { width: 100%; border-radius: 4px; margin-bottom: 6px; display: block; }
+.spider-video { width: 100%; border-radius: 4px; margin-top: 8px; }
 
-#closePanel {
-  position: absolute; top: 15px; right: 18px;
-  width: 30px; height: 30px;
-  padding: 0; border: 0;
-  background: transparent; color: white;
-  font-size: 25px; cursor: pointer;
-}
-
-#panelImage { display: none; width: 100%; margin-bottom: 25px; border-radius: 4px; }
-.kicker { font-size: 9px; letter-spacing: .18em; opacity: .45; }
-#panelTitle { margin: 8px 0 20px; font-size: 27px; font-weight: 400; }
-#panelText { font-size: 14px; line-height: 1.7; opacity: .8; white-space: pre-wrap; }
-#panelPdf {
-  display: none; margin-top: 25px;
-  padding: 10px 14px; border-radius: 4px;
-  background: white; color: black;
-  text-decoration: none; font-size: 10px;
-}
-
-@media (max-width: 600px) {
-  #contentPanel {
-    width: 100%; max-width: 100%;
-    top: auto; height: 72%; padding: 25px;
-    transform: translateY(100%);
-  }
-  #contentPanel.active { transform: translateY(0); }
+#closeAllPanels {
+  position: absolute; top: 18px; right: 18px; z-index: 26;
+  display: none;
+  padding: 9px 14px; border: 0; border-radius: 4px;
+  background: white; color: black; font-size: 10px; cursor: pointer;
 }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
-
-<aside id="contentPanel">
-  <button id="closePanel">×</button>
-  <img id="panelImage" src="" alt="">
-  <div class="kicker">LOCATION</div>
-  <h2 id="panelTitle"></h2>
-  <div id="panelText"></div>
-  <a id="panelPdf" href="#" target="_blank">PDF öffnen</a>
-</aside>
+<svg id="spiderSvg"></svg>
+<div id="spiderLayer"></div>
+<button id="closeAllPanels">Alle Panels schließen</button>
 
 <script>
 mapboxgl.accessToken = "pk.eyJ1IjoibGVvbnJvY2EiLCJhIjoiY21wYmY1Yjl6MDNxczJxc2U0MzByNHA3OCJ9.-BaGJWtZCr3lKDKP1o9THQ";
+
+const TYPE_LABELS = { lost_and_found: "Lost and Found", commission: "Commission", scan: "Scan" };
 
 const map = new mapboxgl.Map({
   container: "map",
@@ -85,90 +71,163 @@ const map = new mapboxgl.Map({
   zoom: 12
 });
 
-const contentPanel = document.getElementById("contentPanel");
-const closePanel = document.getElementById("closePanel");
-const panelTitle = document.getElementById("panelTitle");
-const panelText = document.getElementById("panelText");
-const panelImage = document.getElementById("panelImage");
-const panelPdf = document.getElementById("panelPdf");
+let points = [];
+let routes = [];
+let panels = [];
 
-closePanel.addEventListener("click", function () {
-  contentPanel.classList.remove("active");
-});
+const spiderLayer = document.getElementById("spiderLayer");
+const spiderSvg = document.getElementById("spiderSvg");
+const closeAllButton = document.getElementById("closeAllPanels");
 
-function openPoint(point) {
-  panelTitle.innerText = point.title || "Punkt";
-  panelText.innerText = point.text || "";
-
-  if (point.image_url && point.image_url.trim()) {
-    panelImage.src = point.image_url;
-    panelImage.style.display = "block";
-  } else {
-    panelImage.src = "";
-    panelImage.style.display = "none";
-  }
-
-  if (point.pdf_url && point.pdf_url.trim()) {
-    panelPdf.href = point.pdf_url;
-    panelPdf.style.display = "inline-block";
-  } else {
-    panelPdf.style.display = "none";
-  }
-
-  contentPanel.classList.add("active");
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.innerText = str || "";
+  return div.innerHTML;
 }
 
 function drawRoute(route) {
   const id = "route-" + route.id;
-
-  if (map.getSource(id)) return;
-
   let coordinates = route.coordinates;
-  if (typeof coordinates === "string") {
-    coordinates = JSON.parse(coordinates);
-  }
+  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
 
-  map.addSource(id, {
-    type: "geojson",
-    data: {
-      type: "Feature",
-      geometry: { type: "LineString", coordinates: coordinates },
-      properties: {}
-    }
-  });
-
+  map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
   map.addLayer({
-    id: id,
-    type: "line",
-    source: id,
-    layout: {
-      "line-cap": "round",
-      "line-join": "round",
-      visibility: route.visible === 0 ? "none" : "visible"
-    },
-    paint: {
-      "line-color": route.color || "#ff453a",
-      "line-width": Number(route.width || 5),
-      "line-opacity": .9
-    }
+    id, type: "line", source: id,
+    layout: { "line-cap": "round", "line-join": "round", visibility: route.visible === 0 ? "none" : "visible" },
+    paint: { "line-color": route.color || "#ff453a", "line-width": Number(route.width || 5), "line-opacity": .9 }
   });
+
+  map.on("click", id, () => openTracePanels(route));
+  map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
 }
 
 function createMarker(point) {
   if (point.visible === 0) return;
-
   const element = document.createElement("div");
   element.className = "marker";
+  new mapboxgl.Marker({ element }).setLngLat([point.lng, point.lat]).addTo(map);
+}
 
-  new mapboxgl.Marker({ element: element })
-    .setLngLat([point.lng, point.lat])
-    .addTo(map);
+function routeCentroid(route) {
+  let coordinates = route.coordinates;
+  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+  const bounds = new mapboxgl.LngLatBounds();
+  coordinates.forEach(c => bounds.extend(c));
+  const center = bounds.getCenter();
+  return [center.lng, center.lat];
+}
 
-  element.addEventListener("click", function (event) {
-    event.stopPropagation();
-    openPoint(point);
+async function loadPointEntries(point) {
+  if (point.entries) return point.entries;
+  const response = await fetch("/api/points/" + point.id + "/entries");
+  point.entries = await response.json();
+  return point.entries;
+}
+
+function closeAllPanels() {
+  spiderLayer.innerHTML = "";
+  spiderSvg.innerHTML = "";
+  panels = [];
+  closeAllButton.style.display = "none";
+}
+
+async function openTracePanels(route) {
+  closeAllPanels();
+
+  const relatedPoints = points.filter(p => p.route_id === route.id);
+  const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
+  const total = items.length;
+  const radius = Math.max(210, 45 * total);
+
+  items.forEach((item, index) => {
+    const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
+    const anchorLngLat = item.type === "statistics" ? routeCentroid(route) : [item.point.lng, item.point.lat];
+
+    const el = document.createElement("div");
+    el.className = "spider-panel";
+
+    if (item.type === "statistics") {
+      el.innerHTML =
+        '<button class="panel-close">×</button>' +
+        '<div class="panel-kicker">TRACE STATISTICS</div>' +
+        '<h3>' + escapeHtml(route.name) + '</h3>' +
+        '<p>Dauer: ' + (route.duration_minutes ? route.duration_minutes + ' min' : '–') + '</p>' +
+        '<p>Distanz: ' + (route.distance_km ? route.distance_km + ' km' : '–') + '</p>' +
+        (route.notes ? '<p>' + escapeHtml(route.notes) + '</p>' : '') +
+        (route.video_url ? '<video class="spider-video" controls src="' + route.video_url + '"></video>' : '');
+    } else {
+      const p = item.point;
+      el.innerHTML =
+        '<button class="panel-close">×</button>' +
+        '<div class="panel-kicker">' + (TYPE_LABELS[p.type] || p.type) + '</div>' +
+        '<h3>' + escapeHtml(p.title || 'Objekt') + '</h3>' +
+        '<div class="entries-container"><p style="opacity:.5;">Lädt ...</p></div>';
+
+      loadPointEntries(p).then(entries => {
+        const container = el.querySelector(".entries-container");
+        if (!entries.length) {
+          container.innerHTML = '<p style="opacity:.5;">Keine Einträge.</p>';
+          return;
+        }
+        container.innerHTML = entries.map(entry =>
+          '<div class="spider-entry">' +
+          (entry.image_url ? '<img src="' + entry.image_url + '">' : '') +
+          (entry.note ? '<p>' + escapeHtml(entry.note) + '</p>' : '') +
+          '</div>'
+        ).join("");
+      });
+    }
+
+    spiderLayer.appendChild(el);
+
+    el.querySelector(".panel-close").addEventListener("click", () => {
+      el.remove();
+      panels = panels.filter(pn => pn.el !== el);
+      updatePanelPositions();
+    });
+
+    panels.push({ el, anchorLngLat, angle, radius });
+  });
+
+  closeAllButton.style.display = "block";
+  updatePanelPositions();
+}
+
+function updatePanelPositions() {
+  panels.forEach(panel => {
+    const screen = map.project(panel.anchorLngLat);
+    const x = screen.x + Math.cos(panel.angle) * panel.radius;
+    const y = screen.y + Math.sin(panel.angle) * panel.radius;
+    panel.el.style.left = x + "px";
+    panel.el.style.top = y + "px";
+  });
+  drawLines();
+}
+
+function drawLines() {
+  spiderSvg.innerHTML = "";
+  const mapRect = document.getElementById("map").getBoundingClientRect();
+
+  panels.forEach(panel => {
+    const anchorScreen = map.project(panel.anchorLngLat);
+    const panelRect = panel.el.getBoundingClientRect();
+    const panelX = panelRect.left - mapRect.left + panelRect.width / 2;
+    const panelY = panelRect.top - mapRect.top + panelRect.height / 2;
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", anchorScreen.x);
+    line.setAttribute("y1", anchorScreen.y);
+    line.setAttribute("x2", panelX);
+    line.setAttribute("y2", panelY);
+    line.setAttribute("stroke", "rgba(255,255,255,0.35)");
+    line.setAttribute("stroke-width", "1");
+    spiderSvg.appendChild(line);
   });
 }
+
+closeAllButton.addEventListener("click", closeAllPanels);
+map.on("move", updatePanelPositions);
 
 async function loadData() {
   try {
@@ -176,9 +235,8 @@ async function loadData() {
       fetch("/api/points"),
       fetch("/api/routes")
     ]);
-
-    const points = await pointsResponse.json();
-    const routes = await routesResponse.json();
+    points = await pointsResponse.json();
+    routes = await routesResponse.json();
 
     routes.forEach(drawRoute);
     points.forEach(createMarker);
