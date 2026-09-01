@@ -772,7 +772,13 @@ document.getElementById("confirmGpx").addEventListener("click", async () => {
 
 async function loadData() {
   try {
-    routes = await api("/api/routes");
+        routes = await api("/api/routes");
+    routes.forEach(r => {
+      let c = r.coordinates;
+      let tries = 0;
+      while (typeof c === "string" && tries < 5) { try { c = JSON.parse(c); } catch (e) { break; } tries++; }
+      r.coordinates = c;
+    });
     points = await api("/api/points");
     routes.forEach(drawRoute);
     points.forEach(createMarker);
