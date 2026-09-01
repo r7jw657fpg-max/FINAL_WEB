@@ -36,8 +36,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   position: absolute;
   width: 230px;
   height: 260px;
-  min-width: 180px;
-  min-height: 120px;
+  min-width: 140px;
+  min-height: 90px;
   overflow: hidden;
   resize: both;
   padding: 8px;
@@ -100,8 +100,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 
 <div class="marquee-bar marquee-top">
   <div class="marquee-track">
-    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - CHASING TRACES TO DESIGN - </span>
-    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - CHASING TRACES TO DESIGN - </span>
+    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
+    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
   </div>
 </div>
 
@@ -156,6 +156,7 @@ document.getElementById("lightboxClose").addEventListener("click", closeLightbox
 lightbox.addEventListener("click", (event) => {
   if (event.target === lightbox) closeLightbox();
 });
+
 function parseCoordinates(value) {
   let result = value;
   let tries = 0;
@@ -165,13 +166,24 @@ function parseCoordinates(value) {
   }
   return result;
 }
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.innerText = str || "";
   return div.innerHTML;
 }
 
-function applyAspectRatio(el, aspect) {
+function markerIconSvg(type) {
+  if (type === "scan") {
+    return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10 L11 7 L14 7"/><path d="M21 10 L21 7 L18 7"/><path d="M11 22 L11 25 L14 25"/><path d="M21 22 L21 25 L18 25"/><line x1="9" y1="16" x2="23" y2="16"/></g></svg>';
+  }
+  if (type === "commission") {
+    return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="5" width="16" height="20" rx="1" stroke-width="1.8"/><line x1="10" y1="10" x2="22" y2="10" stroke-width="1.1"/><line x1="10" y1="14" x2="22" y2="14" stroke-width="1.1"/><line x1="10" y1="18" x2="17" y2="18" stroke-width="1.1"/><g transform="translate(18,20) rotate(38)"><rect x="-1" y="-19" width="2" height="5" rx="0.6" fill="#fff" stroke="none"/><line x1="-1.7" y1="-16" x2="-1.7" y2="-11" stroke-width="0.6"/><line x1="0" y1="-14" x2="0" y2="-1" stroke-width="1"/><path d="M-1 -1 L1 -1 L0 3 Z" fill="#fff" stroke="none"/></g></g></svg>';
+  }
+  return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14 L16 9 Q16 6.5 13.5 6.5 Q11 6.5 11 9" stroke-width="1.8"/><path d="M16 14 L7 24 Q5.5 26 8 26 L24 26 Q26.5 26 25 24 Z" stroke-width="2"/><line x1="10" y1="26" x2="22" y2="26" stroke-width="1.2"/></g></svg>';
+}
+
+function applyAspectRatio(panel, aspect) {
   if (!aspect || !isFinite(aspect) || aspect <= 0) return;
   const maxDim = 340;
   const minDim = 190;
@@ -183,13 +195,15 @@ function applyAspectRatio(el, aspect) {
     height = maxDim;
     width = Math.max(minDim, Math.round(maxDim * aspect));
   }
-  el.style.width = width + "px";
-  el.style.height = height + "px";
+  panel.el.style.width = width + "px";
+  panel.el.style.height = height + "px";
+  panel.baseWidth = width;
+  panel.baseHeight = height;
 }
 
 function drawRoute(route) {
   const id = "route-" + route.id;
- let coordinates = parseCoordinates(route.coordinates);
+  let coordinates = parseCoordinates(route.coordinates);
 
   map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
   map.addLayer({
@@ -201,16 +215,6 @@ function drawRoute(route) {
   map.on("click", id, () => openTracePanels(route));
   map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
   map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
-}
-
-function markerIconSvg(type) {
-  if (type === "scan") {
-    return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10 L11 7 L14 7"/><path d="M21 10 L21 7 L18 7"/><path d="M11 22 L11 25 L14 25"/><path d="M21 22 L21 25 L18 25"/><line x1="9" y1="16" x2="23" y2="16"/></g></svg>';
-  }
-  if (type === "commission") {
-    return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="5" width="16" height="20" rx="1" stroke-width="1.8"/><line x1="10" y1="10" x2="22" y2="10" stroke-width="1.1"/><line x1="10" y1="14" x2="22" y2="14" stroke-width="1.1"/><line x1="10" y1="18" x2="17" y2="18" stroke-width="1.1"/><g transform="translate(18,20) rotate(38)"><rect x="-1" y="-19" width="2" height="5" rx="0.6" fill="#fff" stroke="none"/><line x1="-1.7" y1="-16" x2="-1.7" y2="-11" stroke-width="0.6"/><line x1="0" y1="-14" x2="0" y2="-1" stroke-width="1"/><path d="M-1 -1 L1 -1 L0 3 Z" fill="#fff" stroke="none"/></g></g></svg>';
-  }
-  return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14 L16 9 Q16 6.5 13.5 6.5 Q11 6.5 11 9" stroke-width="1.8"/><path d="M16 14 L7 24 Q5.5 26 8 26 L24 26 Q26.5 26 25 24 Z" stroke-width="2"/><line x1="10" y1="26" x2="22" y2="26" stroke-width="1.2"/></g></svg>';
 }
 
 function createMarker(point) {
@@ -259,6 +263,15 @@ function drawLines() {
   });
 }
 
+function rebasePanel(panel) {
+  const anchorScreen = map.project(panel.anchorLngLat);
+  panel.baseZoom = map.getZoom();
+  panel.baseOffsetX = panel.x - anchorScreen.x;
+  panel.baseOffsetY = panel.y - anchorScreen.y;
+  panel.baseWidth = panel.el.offsetWidth;
+  panel.baseHeight = panel.el.offsetHeight;
+}
+
 function makeDraggable(panel) {
   const el = panel.el;
   let dragging = false;
@@ -283,7 +296,11 @@ function makeDraggable(panel) {
     drawLines();
   });
 
-  el.addEventListener("pointerup", () => { dragging = false; });
+  el.addEventListener("pointerup", () => {
+    if (!dragging) return;
+    dragging = false;
+    rebasePanel(panel);
+  });
   el.addEventListener("pointercancel", () => { dragging = false; });
 }
 
@@ -292,7 +309,7 @@ async function openTracePanels(route) {
 
   const relatedPoints = points.filter(p => p.route_id === route.id);
 
-    let routeCoordinates = parseCoordinates(route.coordinates);
+  let routeCoordinates = parseCoordinates(route.coordinates);
   const bounds = new mapboxgl.LngLatBounds();
   routeCoordinates.forEach(c => bounds.extend(c));
   relatedPoints.forEach(p => bounds.extend([p.lng, p.lat]));
@@ -300,7 +317,7 @@ async function openTracePanels(route) {
     map.fitBounds(bounds, { padding: 160, duration: 0 });
   }
 
-    const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
+  const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
   const routeColor = route.color || "#ff453a";
   const centroidLngLat = routeCentroid(route);
   const centroidScreen = map.project(centroidLngLat);
@@ -327,6 +344,7 @@ async function openTracePanels(route) {
 
   const circumferencePerPanel = 340;
   const radius = Math.max(240, (items.length * circumferencePerPanel) / (Math.PI * 2));
+  const currentZoom = map.getZoom();
 
   panels = items.map((item, index) => {
     const angle = spreadAngles[index];
@@ -339,6 +357,16 @@ async function openTracePanels(route) {
     const inner = document.createElement("div");
     inner.className = "spider-panel-inner";
     el.appendChild(inner);
+
+    const panel = {
+      el, anchorLngLat, routeColor,
+      x: 0, y: 0,
+      baseZoom: currentZoom,
+      baseOffsetX: 0,
+      baseOffsetY: 0,
+      baseWidth: 230,
+      baseHeight: 260
+    };
 
     if (item.type === "statistics") {
       inner.innerHTML =
@@ -353,7 +381,7 @@ async function openTracePanels(route) {
       if (route.video_url) {
         const video = inner.querySelector(".spider-video");
         video.addEventListener("loadedmetadata", () => {
-          applyAspectRatio(el, video.videoWidth / video.videoHeight);
+          applyAspectRatio(panel, video.videoWidth / video.videoHeight);
         });
       }
     } else {
@@ -387,7 +415,7 @@ async function openTracePanels(route) {
         const firstImage = entries.find(e => e.image_url);
         if (firstImage) {
           const probe = new Image();
-          probe.onload = () => applyAspectRatio(el, probe.naturalWidth / probe.naturalHeight);
+          probe.onload = () => applyAspectRatio(panel, probe.naturalWidth / probe.naturalHeight);
           probe.src = firstImage.image_url;
         }
       });
@@ -400,7 +428,10 @@ async function openTracePanels(route) {
     el.style.left = x + "px";
     el.style.top = y + "px";
 
-    const panel = { el, anchorLngLat, routeColor, x, y };
+    panel.x = x;
+    panel.y = y;
+    panel.baseOffsetX = x - anchorScreen.x;
+    panel.baseOffsetY = y - anchorScreen.y;
 
     inner.querySelector(".panel-close").addEventListener("click", () => {
       el.remove();
@@ -420,16 +451,16 @@ async function openTracePanels(route) {
 closeAllButton.addEventListener("click", closeAllPanels);
 
 map.on("move", () => {
+  const zoom = map.getZoom();
   panels.forEach(n => {
-    const screen = map.project(n.anchorLngLat);
-    const dx = n.x - (n.prevAnchorX ?? screen.x);
-    const dy = n.y - (n.prevAnchorY ?? screen.y);
-    n.x = screen.x + dx;
-    n.y = screen.y + dy;
-    n.prevAnchorX = screen.x;
-    n.prevAnchorY = screen.y;
+    const anchorScreen = map.project(n.anchorLngLat);
+    const scale = Math.min(1.8, Math.max(0.55, Math.pow(2, zoom - n.baseZoom)));
+    n.x = anchorScreen.x + n.baseOffsetX * scale;
+    n.y = anchorScreen.y + n.baseOffsetY * scale;
     n.el.style.left = n.x + "px";
     n.el.style.top = n.y + "px";
+    n.el.style.width = Math.round(n.baseWidth * scale) + "px";
+    n.el.style.height = Math.round(n.baseHeight * scale) + "px";
   });
   drawLines();
 });
