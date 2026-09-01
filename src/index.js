@@ -35,7 +35,34 @@ export default {
       if (!isAuthenticated(request, env)) return requireAuth();
       return env.ASSETS.fetch(request);
     }
+    if (url.pathname === "/api/upload") {
+      if (!isAuthenticated(request, env)) return requireAuth();
+      if (method !== "POST") return new Response("Method not allowed", { status: 405 });
 
+      const formData = await request.formData();
+      const file = formData.get("file");
+      if (!file) return json({ error: "Keine Datei erhalten" }, 400);
+
+      const key = Date.now() + "-" + Math.random().toString(36).substring(2, 8) + "-" + file.name;
+      await env.BUCKET.put(key, file.stream(), {
+        httpMetadata: { contentType: file.type }
+      });
+
+      return json({ url: "/files/" + key });
+    }
+
+    if (url.pathname.startsWith("/files/")) {
+      const key = decodeURIComponent(url.pathname.replace("/files/", ""));
+      const object = await env.BUCKET.get(key);
+      if (!object) return new Response("Nicht gefunden", { status: 404 });
+
+      const headers = new Headers();
+      object.writeHttpMetadata(headers);
+      headers.set("etag", object.httpEtag);
+
+      return new Response(object.body, { headers });
+    }
+    
     if (url.pathname === "/api/points") {
       if (method === "GET") {
         const { results } = await env.DB.prepare("SELECT * FROM points").all();
