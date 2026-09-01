@@ -46,6 +46,7 @@ input[type=text], textarea { display: block; width: 100%; margin-top: 6px; paddi
 textarea { min-height: 80px; resize: vertical; }
 input[type=color] { display: block; width: 100%; height: 32px; margin-top: 6px; padding: 2px; border: 0; background: transparent; }
 input[type=range] { width: 100%; margin-top: 7px; }
+input[type=file] { display: block; width: 100%; font-size: 9px; color: white; }
 
 .actions { display: flex; gap: 6px; }
 .actions button { flex: 1; padding: 8px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
@@ -142,6 +143,14 @@ const pointHint = document.getElementById("pointHint");
 const statusElement = document.getElementById("status");
 
 function status(text) { statusElement.innerText = text; }
+
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch("/api/upload", { method: "POST", body: formData });
+  if (!response.ok) throw new Error("Upload fehlgeschlagen: " + response.status);
+  return response.json();
+}
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -357,16 +366,22 @@ function renderPoints() {
     textLabel.appendChild(textInput);
 
     const imageLabel = document.createElement("label");
-    imageLabel.innerText = "Bild URL";
+    imageLabel.innerText = "Bild";
     const imageInput = document.createElement("input");
     imageInput.type = "text"; imageInput.placeholder = "https://..."; imageInput.value = point.image_url || "";
-    imageLabel.appendChild(imageInput);
+    const imageUpload = document.createElement("input");
+    imageUpload.type = "file"; imageUpload.accept = "image/*";
+    imageUpload.style.marginTop = "6px";
+    imageLabel.append(imageInput, imageUpload);
 
     const pdfLabel = document.createElement("label");
-    pdfLabel.innerText = "PDF URL";
+    pdfLabel.innerText = "PDF";
     const pdfInput = document.createElement("input");
     pdfInput.type = "text"; pdfInput.placeholder = "https://..."; pdfInput.value = point.pdf_url || "";
-    pdfLabel.appendChild(pdfInput);
+    const pdfUpload = document.createElement("input");
+    pdfUpload.type = "file"; pdfUpload.accept = "application/pdf";
+    pdfUpload.style.marginTop = "6px";
+    pdfLabel.append(pdfInput, pdfUpload);
 
     const actions = document.createElement("div");
     actions.className = "actions";
@@ -396,6 +411,38 @@ function renderPoints() {
     textInput.addEventListener("change", () => { point.text = textInput.value; persist(); });
     imageInput.addEventListener("change", () => { point.image_url = imageInput.value; persist(); });
     pdfInput.addEventListener("change", () => { point.pdf_url = pdfInput.value; persist(); });
+
+    imageUpload.addEventListener("change", async () => {
+      const file = imageUpload.files[0];
+      if (!file) return;
+      status("Bild wird hochgeladen...");
+      try {
+        const uploaded = await uploadFile(file);
+        point.image_url = uploaded.url;
+        imageInput.value = uploaded.url;
+        await persist();
+        status("Bild hochgeladen.");
+      } catch (error) {
+        console.error(error);
+        status("Bild-Upload fehlgeschlagen.");
+      }
+    });
+
+    pdfUpload.addEventListener("change", async () => {
+      const file = pdfUpload.files[0];
+      if (!file) return;
+      status("PDF wird hochgeladen...");
+      try {
+        const uploaded = await uploadFile(file);
+        point.pdf_url = uploaded.url;
+        pdfInput.value = uploaded.url;
+        await persist();
+        status("PDF hochgeladen.");
+      } catch (error) {
+        console.error(error);
+        status("PDF-Upload fehlgeschlagen.");
+      }
+    });
 
     focus.addEventListener("click", () => map.flyTo({ center: [point.lng, point.lat], zoom: 12, duration: 900 }));
 
