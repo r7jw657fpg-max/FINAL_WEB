@@ -294,13 +294,6 @@ function makeDraggable(panel) {
     rebasePanel(panel);
   });
   el.addEventListener("pointercancel", () => { dragging = false; });
-
-  const resizeObserver = new ResizeObserver(() => {
-    panel.baseWidth = el.offsetWidth;
-    panel.baseHeight = el.offsetHeight;
-    panel.baseZoom = map.getZoom();
-  });
-  resizeObserver.observe(el);
 }
 
 async function openTracePanels(route) {
