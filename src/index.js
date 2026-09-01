@@ -35,6 +35,7 @@ export default {
       if (!isAuthenticated(request, env)) return requireAuth();
       return env.ASSETS.fetch(request);
     }
+
     if (url.pathname === "/api/upload") {
       if (!isAuthenticated(request, env)) return requireAuth();
       if (method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -62,7 +63,9 @@ export default {
 
       return new Response(object.body, { headers });
     }
-    
+
+    /* ===== POINTS (Lost and Found / Commission / Scan) ===== */
+
     if (url.pathname === "/api/points") {
       if (method === "GET") {
         const { results } = await env.DB.prepare("SELECT * FROM points").all();
@@ -73,10 +76,12 @@ export default {
         const body = await request.json();
         const pointId = newId("point");
         await env.DB.prepare(
-          "INSERT INTO points (id, title, text, lng, lat, image_url, pdf_url, visible, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO points (id, title, lng, lat, type, route_id, visible, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         ).bind(
-          pointId, body.title || "Neuer Punkt", body.text || "",
-          body.lng, body.lat, body.image_url || "", body.pdf_url || "",
+          pointId, body.title || "Neues Objekt",
+          body.lng, body.lat,
+          body.type || "lost_and_found",
+          body.route_id || null,
           body.visible === false ? 0 : 1, new Date().toISOString()
         ).run();
         return json({ id: pointId }, 201);
@@ -84,17 +89,17 @@ export default {
       return new Response("Method not allowed", { status: 405 });
     }
 
-    if (url.pathname.startsWith("/api/points/")) {
+    if (url.pathname.startsWith("/api/points/") && !url.pathname.includes("/entries")) {
       const pointId = url.pathname.split("/api/points/")[1];
 
       if (method === "PUT") {
         if (!isAuthenticated(request, env)) return requireAuth();
         const body = await request.json();
         await env.DB.prepare(
-          "UPDATE points SET title=?, text=?, lng=?, lat=?, image_url=?, pdf_url=?, visible=?, updated_at=? WHERE id=?"
+          "UPDATE points SET title=?, lng=?, lat=?, type=?, route_id=?, visible=?, updated_at=? WHERE id=?"
         ).bind(
-          body.title || "", body.text || "", body.lng, body.lat,
-          body.image_url || "", body.pdf_url || "",
+          body.title || "", body.lng, body.lat,
+          body.type || "lost_and_found", body.route_id || null,
           body.visible === false ? 0 : 1, new Date().toISOString(), pointId
         ).run();
         return json({ ok: true });
@@ -102,12 +107,55 @@ export default {
 
       if (method === "DELETE") {
         if (!isAuthenticated(request, env)) return requireAuth();
+        await env.DB.prepare("DELETE FROM point_entries WHERE point_id = ?").bind(pointId).run();
         await env.DB.prepare("DELETE FROM points WHERE id = ?").bind(pointId).run();
         return json({ ok: true });
       }
 
       return new Response("Method not allowed", { status: 405 });
     }
+
+    /* ===== POINT ENTRIES (Fotos + Notizen je Objekt) ===== */
+
+    if (url.pathname.match(/^\/api\/points\/[^/]+\/entries$/)) {
+      const pointId = url.pathname.split("/")[3];
+
+      if (method === "GET") {
+        const { results } = await env.DB.prepare("SELECT * FROM point_entries WHERE point_id = ? ORDER BY created_at").bind(pointId).all();
+        return json(results);
+      }
+      if (method === "POST") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        const entryId = newId("entry");
+        await env.DB.prepare(
+          "INSERT INTO point_entries (id, point_id, image_url, note, created_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind(entryId, pointId, body.image_url || "", body.note || "", new Date().toISOString()).run();
+        return json({ id: entryId }, 201);
+      }
+      return new Response("Method not allowed", { status: 405 });
+    }
+
+    if (url.pathname.startsWith("/api/entries/")) {
+      const entryId = url.pathname.split("/api/entries/")[1];
+
+      if (method === "DELETE") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        await env.DB.prepare("DELETE FROM point_entries WHERE id = ?").bind(entryId).run();
+        return json({ ok: true });
+      }
+      if (method === "PUT") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        await env.DB.prepare("UPDATE point_entries SET image_url=?, note=? WHERE id=?")
+          .bind(body.image_url || "", body.note || "", entryId).run();
+        return json({ ok: true });
+      }
+
+      return new Response("Method not allowed", { status: 405 });
+    }
+
+    /* ===== ROUTES (Traces) ===== */
 
     if (url.pathname === "/api/routes") {
       if (method === "GET") {
@@ -119,11 +167,13 @@ export default {
         const body = await request.json();
         const routeId = newId("route");
         await env.DB.prepare(
-          "INSERT INTO routes (id, name, color, width, coordinates, visible, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO routes (id, name, color, width, coordinates, visible, updated_at, duration_minutes, distance_km, notes, video_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         ).bind(
-          routeId, body.name || "Route", body.color || "#ff453a",
+          routeId, body.name || "Trace", body.color || "#ff453a",
           Number(body.width || 5), JSON.stringify(body.coordinates || []),
-          body.visible === false ? 0 : 1, new Date().toISOString()
+          body.visible === false ? 0 : 1, new Date().toISOString(),
+          body.duration_minutes || null, body.distance_km || null,
+          body.notes || "", body.video_url || ""
         ).run();
         return json({ id: routeId }, 201);
       }
@@ -137,11 +187,13 @@ export default {
         if (!isAuthenticated(request, env)) return requireAuth();
         const body = await request.json();
         await env.DB.prepare(
-          "UPDATE routes SET name=?, color=?, width=?, coordinates=?, visible=?, updated_at=? WHERE id=?"
+          "UPDATE routes SET name=?, color=?, width=?, coordinates=?, visible=?, updated_at=?, duration_minutes=?, distance_km=?, notes=?, video_url=? WHERE id=?"
         ).bind(
           body.name || "", body.color || "#ff453a", Number(body.width || 5),
           JSON.stringify(body.coordinates || []),
-          body.visible === false ? 0 : 1, new Date().toISOString(), routeId
+          body.visible === false ? 0 : 1, new Date().toISOString(),
+          body.duration_minutes || null, body.distance_km || null,
+          body.notes || "", body.video_url || "", routeId
         ).run();
         return json({ ok: true });
       }
