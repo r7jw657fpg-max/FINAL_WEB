@@ -5,17 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+<script src="https://d3js.org/d3-force.v3.min.js"></script>
 <style>
 * { box-sizing: border-box; }
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
 #map { position: absolute; inset: 0; }
 
-.marker {
-  width: 17px; height: 17px;
-  border-radius: 50%;
-  border: 3px solid black;
-  background: white;
-}
+.marker { width: 17px; height: 17px; border-radius: 50%; border: 3px solid black; background: white; }
 
 #spiderSvg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 24; pointer-events: none; }
 #spiderLayer { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
@@ -28,6 +24,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   background: rgba(12,12,12,.96);
   color: white;
   border: 1px solid rgba(255,255,255,.15);
+  border-top: 3px solid transparent;
   border-radius: 8px;
   padding: 16px;
   pointer-events: all;
@@ -74,6 +71,7 @@ const map = new mapboxgl.Map({
 let points = [];
 let routes = [];
 let panels = [];
+let simulation = null;
 
 const spiderLayer = document.getElementById("spiderLayer");
 const spiderSvg = document.getElementById("spiderSvg");
@@ -126,10 +124,26 @@ async function loadPointEntries(point) {
 }
 
 function closeAllPanels() {
+  if (simulation) { simulation.stop(); simulation = null; }
   spiderLayer.innerHTML = "";
   spiderSvg.innerHTML = "";
   panels = [];
   closeAllButton.style.display = "none";
+}
+
+function drawLines() {
+  spiderSvg.innerHTML = "";
+  panels.forEach(n => {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", n.anchorX);
+    line.setAttribute("y1", n.anchorY);
+    line.setAttribute("x2", n.x);
+    line.setAttribute("y2", n.y);
+    line.setAttribute("stroke", n.routeColor);
+    line.setAttribute("stroke-width", "1.5");
+    line.setAttribute("stroke-opacity", "0.75");
+    spiderSvg.appendChild(line);
+  });
 }
 
 async function openTracePanels(route) {
@@ -138,14 +152,17 @@ async function openTracePanels(route) {
   const relatedPoints = points.filter(p => p.route_id === route.id);
   const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
   const total = items.length;
-  const radius = Math.max(210, 45 * total);
+  const radius = Math.max(190, 40 * total);
+  const routeColor = route.color || "#ff453a";
 
-  items.forEach((item, index) => {
+  const nodes = items.map((item, index) => {
     const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
     const anchorLngLat = item.type === "statistics" ? routeCentroid(route) : [item.point.lng, item.point.lat];
+    const anchorScreen = map.project(anchorLngLat);
 
     const el = document.createElement("div");
     el.className = "spider-panel";
+    el.style.borderTopColor = routeColor;
 
     if (item.type === "statistics") {
       el.innerHTML =
@@ -181,53 +198,50 @@ async function openTracePanels(route) {
 
     spiderLayer.appendChild(el);
 
+    const node = {
+      el, anchorLngLat, routeColor,
+      anchorX: anchorScreen.x, anchorY: anchorScreen.y,
+      radius, collideRadius: 130,
+      x: anchorScreen.x + Math.cos(angle) * radius,
+      y: anchorScreen.y + Math.sin(angle) * radius
+    };
+
     el.querySelector(".panel-close").addEventListener("click", () => {
       el.remove();
-      panels = panels.filter(pn => pn.el !== el);
-      updatePanelPositions();
+      panels = panels.filter(n => n.el !== el);
+      simulation.nodes(panels).alpha(0.3).restart();
     });
 
-    panels.push({ el, anchorLngLat, angle, radius });
+    return node;
   });
+
+  panels = nodes;
+
+  simulation = d3.forceSimulation(nodes)
+    .force("radial", d3.forceRadial(d => d.radius, d => d.anchorX, d => d.anchorY).strength(0.7))
+    .force("collide", d3.forceCollide(d => d.collideRadius).strength(0.9))
+    .on("tick", () => {
+      nodes.forEach(n => {
+        n.el.style.left = n.x + "px";
+        n.el.style.top = n.y + "px";
+      });
+      drawLines();
+    });
 
   closeAllButton.style.display = "block";
-  updatePanelPositions();
-}
-
-function updatePanelPositions() {
-  panels.forEach(panel => {
-    const screen = map.project(panel.anchorLngLat);
-    const x = screen.x + Math.cos(panel.angle) * panel.radius;
-    const y = screen.y + Math.sin(panel.angle) * panel.radius;
-    panel.el.style.left = x + "px";
-    panel.el.style.top = y + "px";
-  });
-  drawLines();
-}
-
-function drawLines() {
-  spiderSvg.innerHTML = "";
-  const mapRect = document.getElementById("map").getBoundingClientRect();
-
-  panels.forEach(panel => {
-    const anchorScreen = map.project(panel.anchorLngLat);
-    const panelRect = panel.el.getBoundingClientRect();
-    const panelX = panelRect.left - mapRect.left + panelRect.width / 2;
-    const panelY = panelRect.top - mapRect.top + panelRect.height / 2;
-
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", anchorScreen.x);
-    line.setAttribute("y1", anchorScreen.y);
-    line.setAttribute("x2", panelX);
-    line.setAttribute("y2", panelY);
-    line.setAttribute("stroke", "rgba(255,255,255,0.35)");
-    line.setAttribute("stroke-width", "1");
-    spiderSvg.appendChild(line);
-  });
 }
 
 closeAllButton.addEventListener("click", closeAllPanels);
-map.on("move", updatePanelPositions);
+
+map.on("move", () => {
+  if (!simulation) return;
+  panels.forEach(n => {
+    const screen = map.project(n.anchorLngLat);
+    n.anchorX = screen.x;
+    n.anchorY = screen.y;
+  });
+  simulation.alpha(0.5).restart();
+});
 
 async function loadData() {
   try {
