@@ -150,6 +150,14 @@ async function openTracePanels(route) {
   closeAllPanels();
 
   const relatedPoints = points.filter(p => p.route_id === route.id);
+
+  let routeCoordinates = route.coordinates;
+  if (typeof routeCoordinates === "string") routeCoordinates = JSON.parse(routeCoordinates);
+  const bounds = new mapboxgl.LngLatBounds();
+  routeCoordinates.forEach(c => bounds.extend(c));
+  relatedPoints.forEach(p => bounds.extend([p.lng, p.lat]));
+  map.fitBounds(bounds, { padding: 160, duration: 0 });
+
   const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
   const total = items.length;
   const radius = Math.max(190, 40 * total);
