@@ -7,137 +7,125 @@
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
 <style>
 * { box-sizing: border-box; }
-html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
-#map { position: absolute; inset: 0; }
-
-#editor {
-  position: absolute; z-index: 20; top: 18px; left: 18px;
-  width: 380px; max-height: calc(100vh - 36px); overflow-y: auto;
-  padding: 22px; background: rgba(12,12,12,.96); color: white;
-  border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
-  box-shadow: 0 20px 70px rgba(0,0,0,.5);
-}
-
-.editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; }
-.kicker { font-size: 9px; letter-spacing: .18em; opacity: .45; }
-.editor-title { margin-top: 5px; font-size: 22px; font-weight: 400; }
-
-.section { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,.1); }
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; }
-.section-title { font-size: 13px; }
-.section-subtitle { margin-top: 3px; font-size: 9px; opacity: .4; }
-
-button { font-family: inherit; cursor: pointer; }
-.small-button { padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 4px; background: white; color: black; font-size: 10px; }
-.small-button:hover { opacity: .8; }
-
-.layer-list { display: flex; flex-direction: column; gap: 6px; }
-.layer { overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; background: rgba(255,255,255,.035); }
-.layer-header { display: flex; align-items: center; gap: 9px; padding: 10px; cursor: pointer; }
-.layer-header:hover { background: rgba(255,255,255,.04); }
-.layer-color { width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; }
-.layer-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
-.layer-type { font-size: 8px; opacity: .4; text-transform: uppercase; letter-spacing: .05em; }
-.visibility { border: 0; background: transparent; color: white; opacity: .6; cursor: pointer; }
-.layer-body { display: none; padding: 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.layer.open .layer-body { display: block; }
-
-.nested-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
-.nested-layer { overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 5px; background: rgba(255,255,255,.02); }
-
-label { display: block; margin-bottom: 13px; font-size: 10px; opacity: .8; }
-input[type=text], textarea, select, input[type=number] { display: block; width: 100%; margin-top: 6px; padding: 9px; border: 1px solid rgba(255,255,255,.18); border-radius: 4px; outline: none; background: #1c1c1c; color: white; font-family: inherit; }
-textarea { min-height: 60px; resize: vertical; }
-input[type=color] { display: block; width: 100%; height: 32px; margin-top: 6px; padding: 2px; border: 0; background: transparent; }
-input[type=range] { width: 100%; margin-top: 7px; }
-input[type=file] { display: block; width: 100%; font-size: 9px; color: white; margin-top: 6px; }
-
-.actions { display: flex; gap: 6px; }
-.actions button { flex: 1; padding: 8px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
-.delete { background: rgba(255,69,58,.15) !important; color: #ff453a !important; }
-
-.hint { padding: 9px; border-radius: 4px; background: rgba(255,255,255,.04); font-size: 10px; line-height: 1.5; opacity: .5; }
-#status { font-size: 9px; opacity: .4; }
-
-.entries-box { margin-top: 6px; margin-bottom: 13px; padding: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; background: rgba(255,255,255,.02); }
-.entries-title { font-size: 10px; opacity: .7; margin-bottom: 8px; }
-.entry-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.06); }
-.entry-item:first-child { border-top: 0; }
-.entry-thumb { width: 34px; height: 34px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: #222; }
-.entry-note { flex: 1; font-size: 10px; opacity: .8; white-space: pre-wrap; word-break: break-word; }
-.entry-delete { border: 0; background: transparent; color: #ff453a; font-size: 14px; cursor: pointer; flex-shrink: 0; }
-.entry-form { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,.1); }
-.entry-form label { margin-bottom: 8px; }
-.entry-add-button { width: 100%; margin-top: 4px; padding: 7px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
-
-.objects-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px; }
-.objects-title { font-size: 10px; opacity: .7; }
-
-#dialog { position: absolute; z-index: 100; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
-#dialog.active { display: flex; }
-.dialog-box { width: 340px; max-width: 90vw; padding: 25px; border-radius: 8px; background: #111; color: white; }
-.dialog-box h2 { margin: 5px 0 22px; font-size: 21px; font-weight: 400; }
-.dialog-actions { display: flex; gap: 7px; margin-top: 20px; }
-.dialog-actions button { flex: 1; padding: 9px; border: 0; border-radius: 4px; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+#map { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; }
 
 .marker-badge { width: 30px; height: 30px; border-radius: 50%; background: #0c0c0c; border: 2px solid #ffd400; display: flex; align-items: center; justify-content: center; }
-.marker:hover { transform: scale(1.35); }
-.marker.adding { background: #ff453a; }
+
+.marquee-bar {
+  position: fixed; left: 0; right: 0; height: 40px;
+  overflow: hidden; background: #000; z-index: 30;
+}
+.marquee-top { top: 0; border-bottom: 1px solid rgba(255,255,255,.15); }
+.marquee-bottom { bottom: 0; border-top: 1px solid rgba(255,255,255,.15); }
+.marquee-track { display: flex; width: max-content; animation: marquee-scroll 28s linear infinite; }
+.marquee-track span {
+  white-space: nowrap; padding-right: 0;
+  font-size: 13px; letter-spacing: .04em; color: #fff; line-height: 40px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+#spiderSvg { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; z-index: 24; pointer-events: none; overflow: visible; }
+#spiderLayer { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; z-index: 25; pointer-events: none; }
+
+.spider-panel {
+  position: absolute;
+  width: 230px;
+  height: 260px;
+  min-width: 140px;
+  min-height: 90px;
+  overflow: hidden;
+  resize: both;
+  padding: 8px;
+  border-radius: 6px;
+  pointer-events: all;
+  transform: translate(-50%, -50%);
+  cursor: default;
+  background-image: repeating-linear-gradient(45deg, #050505 0 18px, #ffd400 18px 36px);
+  background-size: 400% 400%;
+  animation: caution-scroll 5s linear infinite;
+}
+@keyframes caution-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 72px 0; }
+}
+.spider-panel-inner {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0c0c0c;
+  border-radius: 3px;
+  padding: 14px;
+  position: relative;
+  font-size: 11px;
+  color: white;
+}
+.panel-kicker { font-size: 8px; letter-spacing: .15em; opacity: .5; margin-bottom: 6px; text-transform: uppercase; }
+.spider-panel-inner h3 { margin: 0 0 10px; font-size: 15px; font-weight: 400; }
+.spider-panel-inner p { margin: 0 0 6px; opacity: .8; line-height: 1.5; white-space: pre-wrap; }
+.panel-close { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: white; font-size: 18px; cursor: pointer; opacity: .6; }
+.panel-close:hover { opacity: 1; }
+.spider-entry { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.spider-entry:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.spider-entry img { width: 100%; border-radius: 4px; margin-bottom: 6px; display: block; cursor: pointer; }
+.spider-video { width: 100%; border-radius: 4px; margin-top: 8px; }
+
+#closeAllPanels {
+  position: absolute; top: 58px; right: 18px; z-index: 26;
+  display: none;
+  padding: 9px 14px; border: 0; border-radius: 4px;
+  background: white; color: black; font-size: 10px; cursor: pointer;
+}
+
+#lightbox {
+  position: fixed; inset: 0; z-index: 50;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.92);
+}
+#lightbox.active { display: flex; }
+#lightboxContent img { max-width: 90vw; max-height: 90vh; border-radius: 4px; display: block; }
+#lightboxClose {
+  position: absolute; top: 20px; right: 26px;
+  background: none; border: 0; color: white; font-size: 34px; cursor: pointer; opacity: .8;
+}
+#lightboxClose:hover { opacity: 1; }
 </style>
 </head>
 <body>
 
-<div id="map"></div>
-
-<aside id="editor">
-  <div class="editor-header">
-    <div>
-      <div class="kicker">MAP PROJECT</div>
-      <div class="editor-title">Map Editor</div>
-    </div>
+<div class="marquee-bar marquee-top">
+  <div class="marquee-track">
+    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
+    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
   </div>
+</div>
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <div class="section-title">Traces</div>
-        <div class="section-subtitle">GPX-Strecken + Objekte</div>
-      </div>
-      <button id="gpxButton" class="small-button">+ GPX</button>
-    </div>
-    <input id="gpxInput" type="file" accept=".gpx" hidden>
-    <div id="routesList" class="layer-list"></div>
-  </section>
+<div id="map"></div>
+<svg id="spiderSvg"></svg>
+<div id="spiderLayer"></div>
+<button id="closeAllPanels">Alle Panels schließen</button>
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <div class="section-title">Objekte ohne Trace</div>
-        <div class="section-subtitle">Noch keiner Trace zugeordnet</div>
-      </div>
-    </div>
-    <div id="orphanPointsList" class="layer-list"></div>
-  </section>
+<div id="lightbox">
+  <button id="lightboxClose">×</button>
+  <div id="lightboxContent"></div>
+</div>
 
-  <div id="status">Karte wird geladen ...</div>
-</aside>
-
-<div id="dialog">
-  <div class="dialog-box">
-    <div class="kicker">NEW TRACE</div>
-    <h2>GPX importieren</h2>
-    <label>Name<input id="routeName" type="text"></label>
-    <label>Farbe<input id="routeColor" type="color" value="#ff453a"></label>
-    <label>Linienstärke<input id="routeWidth" type="range" min="1" max="12" value="5"></label>
-    <div class="dialog-actions">
-      <button id="cancelGpx">Abbrechen</button>
-      <button id="confirmGpx">Importieren</button>
-    </div>
+<div class="marquee-bar marquee-bottom">
+  <div class="marquee-track">
+    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
+    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
   </div>
 </div>
 
 <script>
 mapboxgl.accessToken = "pk.eyJ1IjoibGVvbnJvY2EiLCJhIjoiY21wYmY1Yjl6MDNxczJxc2U0MzByNHA3OCJ9.-BaGJWtZCr3lKDKP1o9THQ";
+
+const TYPE_LABELS = { lost_and_found: "Lost and Found", commission: "Commission", scan: "Scan" };
 
 const map = new mapboxgl.Map({
   container: "map",
@@ -146,38 +134,35 @@ const map = new mapboxgl.Map({
   zoom: 12
 });
 
-const TYPE_LABELS = { lost_and_found: "Lost and Found", commission: "Commission", scan: "Scan" };
-
 let points = [];
 let routes = [];
-let markers = [];
-let addingPointForRoute = null;
-let pendingGpx = null;
+let panels = [];
 
-const routesList = document.getElementById("routesList");
-const orphanPointsList = document.getElementById("orphanPointsList");
-const statusElement = document.getElementById("status");
+const spiderLayer = document.getElementById("spiderLayer");
+const spiderSvg = document.getElementById("spiderSvg");
+const closeAllButton = document.getElementById("closeAllPanels");
+const lightbox = document.getElementById("lightbox");
+const lightboxContent = document.getElementById("lightboxContent");
 
-function status(text) { statusElement.innerText = text; }
+function openLightbox(url) {
+  lightboxContent.innerHTML = '<img src="' + url + '">';
+  lightbox.classList.add("active");
+}
+function closeLightbox() {
+  lightbox.classList.remove("active");
+  lightboxContent.innerHTML = "";
+}
+document.getElementById("lightboxClose").addEventListener("click", closeLightbox);
+lightbox.addEventListener("click", (event) => {
+  if (event.target === lightbox) closeLightbox();
+});
 
-async function uploadFile(file) {
-  const formData = new FormData();
-  formData.append("file", file);
-  const response = await fetch("/api/upload", { method: "POST", body: formData });
-  if (!response.ok) throw new Error("Upload fehlgeschlagen: " + response.status);
-  return response.json();
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.innerText = str || "";
+  return div.innerHTML;
 }
 
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-  });
-  if (!response.ok) throw new Error("API-Fehler: " + response.status);
-  return response.status === 204 ? null : response.json();
-}
-
-/* ===== MARKERS ===== */
 function markerIconSvg(type) {
   if (type === "scan") {
     return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10 L11 7 L14 7"/><path d="M21 10 L21 7 L18 7"/><path d="M11 22 L11 25 L14 25"/><path d="M21 22 L21 25 L18 25"/><line x1="9" y1="16" x2="23" y2="16"/></g></svg>';
@@ -187,615 +172,306 @@ function markerIconSvg(type) {
   }
   return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14 L16 9 Q16 6.5 13.5 6.5 Q11 6.5 11 9" stroke-width="1.8"/><path d="M16 14 L7 24 Q5.5 26 8 26 L24 26 Q26.5 26 25 24 Z" stroke-width="2"/><line x1="10" y1="26" x2="22" y2="26" stroke-width="1.2"/></g></svg>';
 }
+
+function applyAspectRatio(panel, aspect) {
+  if (!aspect || !isFinite(aspect) || aspect <= 0) return;
+  const maxDim = 340;
+  const minDim = 190;
+  let width, height;
+  if (aspect >= 1) {
+    width = maxDim;
+    height = Math.max(minDim, Math.round(maxDim / aspect));
+  } else {
+    height = maxDim;
+    width = Math.max(minDim, Math.round(maxDim * aspect));
+  }
+  panel.el.style.width = width + "px";
+  panel.el.style.height = height + "px";
+  panel.baseWidth = width;
+  panel.baseHeight = height;
+}
+
+function drawRoute(route) {
+  const id = "route-" + route.id;
+  let coordinates = route.coordinates;
+  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+
+  map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
+  map.addLayer({
+    id, type: "line", source: id,
+    layout: { "line-cap": "round", "line-join": "round", visibility: route.visible === 0 ? "none" : "visible" },
+    paint: { "line-color": route.color || "#ff453a", "line-width": Number(route.width || 5), "line-opacity": .9 }
+  });
+
+  map.on("click", id, () => openTracePanels(route));
+  map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
+}
+
 function createMarker(point) {
+  if (point.visible === 0) return;
   const element = document.createElement("div");
   element.className = "marker-badge";
   element.innerHTML = markerIconSvg(point.type);
-  const marker = new mapboxgl.Marker({ element, draggable: true }).setLngLat([point.lng, point.lat]).addTo(map);
-  marker.pointId = point.id;
-  if (point.visible === 0) element.style.display = "none";
-
-  marker.on("dragend", async () => {
-    const position = marker.getLngLat();
-    point.lng = position.lng;
-    point.lat = position.lat;
-    await savePoint(point);
-    status("Objekt verschoben.");
-  });
-
-  markers.push(marker);
+  new mapboxgl.Marker({ element }).setLngLat([point.lng, point.lat]).addTo(map);
 }
 
-/* ===== ROUTES (Traces) ===== */
-
-function routeLayerId(route) { return "route-" + route.id; }
-
-function drawRoute(route) {
-  const id = routeLayerId(route);
+function routeCentroid(route) {
   let coordinates = route.coordinates;
   if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
-
-  if (map.getSource(id)) {
-    map.getSource(id).setData({ type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} });
-    map.setPaintProperty(id, "line-color", route.color || "#ff453a");
-    map.setPaintProperty(id, "line-width", Number(route.width || 5));
-    map.setLayoutProperty(id, "visibility", route.visible === 0 ? "none" : "visible");
-  } else {
-    map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
-    map.addLayer({
-      id, type: "line", source: id,
-      layout: { "line-cap": "round", "line-join": "round", visibility: route.visible === 0 ? "none" : "visible" },
-      paint: { "line-color": route.color || "#ff453a", "line-width": Number(route.width || 5), "line-opacity": .9 }
-    });
-  }
-}
-
-function removeRouteLayer(route) {
-  const id = routeLayerId(route);
-  if (map.getLayer(id)) map.removeLayer(id);
-  if (map.getSource(id)) map.removeSource(id);
-}
-
-function focusRoute(route) {
-  let coordinates = route.coordinates;
-  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
-  if (!coordinates || coordinates.length < 2) return;
   const bounds = new mapboxgl.LngLatBounds();
   coordinates.forEach(c => bounds.extend(c));
-  map.fitBounds(bounds, { padding: 100, duration: 900 });
+  const center = bounds.getCenter();
+  return [center.lng, center.lat];
 }
 
-/* ===== POINT ENTRIES ===== */
-
-async function loadEntries(point) {
-  point.entries = await api("/api/points/" + point.id + "/entries");
+async function loadPointEntries(point) {
+  if (point.entries) return point.entries;
+  const response = await fetch("/api/points/" + point.id + "/entries");
+  point.entries = await response.json();
+  return point.entries;
 }
 
-function renderEntries(container, point) {
-  container.innerHTML = "";
+function closeAllPanels() {
+  spiderLayer.innerHTML = "";
+  spiderSvg.innerHTML = "";
+  panels = [];
+  closeAllButton.style.display = "none";
+}
 
-  const title = document.createElement("div");
-  title.className = "entries-title";
-  title.innerText = "Einträge (Fotos & Notizen)";
-  container.appendChild(title);
+function drawLines() {
+  spiderSvg.innerHTML = "";
+  panels.forEach(n => {
+    const anchorScreen = map.project(n.anchorLngLat);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", anchorScreen.x);
+    line.setAttribute("y1", anchorScreen.y);
+    line.setAttribute("x2", n.x);
+    line.setAttribute("y2", n.y);
+    line.setAttribute("stroke", n.routeColor);
+    line.setAttribute("stroke-width", "3");
+    line.setAttribute("stroke-opacity", "0.8");
+    spiderSvg.appendChild(line);
+  });
+}
 
-  (point.entries || []).forEach(entry => {
-    const item = document.createElement("div");
-    item.className = "entry-item";
+function rebasePanel(panel) {
+  const anchorScreen = map.project(panel.anchorLngLat);
+  panel.baseZoom = map.getZoom();
+  panel.baseOffsetX = panel.x - anchorScreen.x;
+  panel.baseOffsetY = panel.y - anchorScreen.y;
+  panel.baseWidth = panel.el.offsetWidth;
+  panel.baseHeight = panel.el.offsetHeight;
+}
 
-    const thumb = document.createElement("img");
-    thumb.className = "entry-thumb";
-    thumb.src = entry.image_url || "";
+function makeDraggable(panel) {
+  const el = panel.el;
+  let dragging = false;
+  let startX = 0, startY = 0, startPanelX = 0, startPanelY = 0;
 
-    const note = document.createElement("div");
-    note.className = "entry-note";
-    note.innerText = entry.note || "";
-
-    const del = document.createElement("button");
-    del.className = "entry-delete";
-    del.innerText = "×";
-    del.addEventListener("click", async () => {
-      if (!confirm("Diesen Eintrag löschen?")) return;
-      await api("/api/entries/" + entry.id, { method: "DELETE" });
-      point.entries = point.entries.filter(e => e.id !== entry.id);
-      renderEntries(container, point);
-      status("Eintrag gelöscht.");
-    });
-
-    item.append(thumb, note, del);
-    container.appendChild(item);
+  el.addEventListener("pointerdown", (event) => {
+    if (event.target !== el) return;
+    dragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    startPanelX = panel.x;
+    startPanelY = panel.y;
+    el.setPointerCapture(event.pointerId);
   });
 
-  const form = document.createElement("div");
-  form.className = "entry-form";
+  el.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    panel.x = startPanelX + (event.clientX - startX);
+    panel.y = startPanelY + (event.clientY - startY);
+    el.style.left = panel.x + "px";
+    el.style.top = panel.y + "px";
+    drawLines();
+  });
 
-  const fileLabel = document.createElement("label");
-  fileLabel.innerText = "Neues Foto";
-  const fileInput = document.createElement("input");
-  fileInput.type = "file"; fileInput.accept = "image/*";
-  fileLabel.appendChild(fileInput);
+  el.addEventListener("pointerup", () => {
+    if (!dragging) return;
+    dragging = false;
+    rebasePanel(panel);
+  });
+  el.addEventListener("pointercancel", () => { dragging = false; });
 
-  const noteLabel = document.createElement("label");
-  noteLabel.innerText = "Notiz (optional)";
-  const noteInput = document.createElement("textarea");
-  noteLabel.appendChild(noteInput);
+  const resizeObserver = new ResizeObserver(() => {
+    panel.baseWidth = el.offsetWidth;
+    panel.baseHeight = el.offsetHeight;
+    panel.baseZoom = map.getZoom();
+  });
+  resizeObserver.observe(el);
+}
 
-  const addButton = document.createElement("button");
-  addButton.className = "entry-add-button";
-  addButton.innerText = "+ Eintrag hinzufügen";
+async function openTracePanels(route) {
+  closeAllPanels();
 
-  addButton.addEventListener("click", async () => {
-    let imageUrl = "";
-    if (fileInput.files[0]) {
-      status("Foto wird hochgeladen...");
-      try {
-        const uploaded = await uploadFile(fileInput.files[0]);
-        imageUrl = uploaded.url;
-      } catch (error) {
-        console.error(error);
-        status("Foto-Upload fehlgeschlagen.");
-        return;
-      }
+  const relatedPoints = points.filter(p => p.route_id === route.id);
+
+  let routeCoordinates = route.coordinates;
+  if (typeof routeCoordinates === "string") routeCoordinates = JSON.parse(routeCoordinates);
+  const bounds = new mapboxgl.LngLatBounds();
+  routeCoordinates.forEach(c => bounds.extend(c));
+  relatedPoints.forEach(p => bounds.extend([p.lng, p.lat]));
+  if (!bounds.isEmpty()) {
+    map.fitBounds(bounds, { padding: 160, duration: 0 });
+  }
+
+  const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
+  const routeColor = route.color || "#ff453a";
+  const centroidLngLat = routeCentroid(route);
+  const centroidScreen = map.project(centroidLngLat);
+
+  const rawAngles = items.map((item) => {
+    if (item.type === "statistics") return -Math.PI / 2;
+    const anchorScreen = map.project([item.point.lng, item.point.lat]);
+    const dx = anchorScreen.x - centroidScreen.x;
+    const dy = anchorScreen.y - centroidScreen.y;
+    if (dx === 0 && dy === 0) return Math.random() * Math.PI * 2;
+    return Math.atan2(dy, dx);
+  });
+
+  const order = rawAngles.map((a, i) => i).sort((a, b) => rawAngles[a] - rawAngles[b]);
+  const minSep = Math.max(0.3, (Math.PI * 2) / (items.length * 1.6));
+  const spreadAngles = rawAngles.slice();
+  for (let k = 1; k < order.length; k++) {
+    const prevIndex = order[k - 1];
+    const currIndex = order[k];
+    if (spreadAngles[currIndex] - spreadAngles[prevIndex] < minSep) {
+      spreadAngles[currIndex] = spreadAngles[prevIndex] + minSep;
     }
-    const created = await api("/api/points/" + point.id + "/entries", {
-      method: "POST",
-      body: JSON.stringify({ image_url: imageUrl, note: noteInput.value })
-    });
-    point.entries = point.entries || [];
-    point.entries.push({ id: created.id, image_url: imageUrl, note: noteInput.value });
-    renderEntries(container, point);
-    status("Eintrag hinzugefügt.");
-  });
-
-  form.append(fileLabel, noteLabel, addButton);
-  container.appendChild(form);
-}
-
-/* ===== POINT LAYER (wiederverwendbar) ===== */
-
-function buildPointLayer(point, options) {
-  const layer = document.createElement("div");
-  layer.className = "layer nested-layer";
-
-  const header = document.createElement("div");
-  header.className = "layer-header";
-  const color = document.createElement("div");
-  color.className = "layer-color";
-  color.style.background = "white";
-  const nameWrap = document.createElement("div");
-  nameWrap.className = "layer-name";
-  const name = document.createElement("div");
-  name.innerText = point.title || "Objekt";
-  const typeTag = document.createElement("div");
-  typeTag.className = "layer-type";
-  typeTag.innerText = TYPE_LABELS[point.type] || point.type;
-  nameWrap.append(name, typeTag);
-  const visibility = document.createElement("button");
-  visibility.className = "visibility";
-  visibility.innerText = point.visible === 0 ? "○" : "●";
-
-  header.append(color, nameWrap, visibility);
-  layer.appendChild(header);
-
-  const body = document.createElement("div");
-  body.className = "layer-body";
-  let entriesLoaded = false;
-
-  const titleLabel = document.createElement("label");
-  titleLabel.innerText = "Titel";
-  const titleInput = document.createElement("input");
-  titleInput.type = "text"; titleInput.value = point.title || "";
-  titleLabel.appendChild(titleInput);
-
-  const typeLabel = document.createElement("label");
-  typeLabel.innerText = "Panel-Art";
-  const typeSelect = document.createElement("select");
-  typeSelect.innerHTML =
-    '<option value="lost_and_found"' + (point.type === "lost_and_found" ? " selected" : "") + '>Lost and Found</option>' +
-    '<option value="commission"' + (point.type === "commission" ? " selected" : "") + '>Commission</option>' +
-    '<option value="scan"' + (point.type === "scan" ? " selected" : "") + '>Scan</option>';
-  typeLabel.appendChild(typeSelect);
-
-  body.append(titleLabel, typeLabel);
-
-  let routeSelect = null;
-  if (options.showRouteSelect) {
-    const routeLabel = document.createElement("label");
-    routeLabel.innerText = "Trace zuweisen";
-    routeSelect = document.createElement("select");
-    let optionsHtml = '<option value="">– keine Trace –</option>';
-    routes.forEach(r => { optionsHtml += '<option value="' + r.id + '">' + r.name + '</option>'; });
-    routeSelect.innerHTML = optionsHtml;
-    routeLabel.appendChild(routeSelect);
-    body.appendChild(routeLabel);
   }
 
-  const entriesBox = document.createElement("div");
-  entriesBox.className = "entries-box";
-  entriesBox.innerHTML = '<div class="hint">Wird beim Öffnen geladen ...</div>';
-  body.appendChild(entriesBox);
+  const circumferencePerPanel = 340;
+  const radius = Math.max(240, (items.length * circumferencePerPanel) / (Math.PI * 2));
+  const currentZoom = map.getZoom();
 
-  const actions = document.createElement("div");
-  actions.className = "actions";
-  const focus = document.createElement("button");
-  focus.innerText = "Fokussieren";
-  const remove = document.createElement("button");
-  remove.innerText = "Löschen"; remove.className = "delete";
-  actions.append(focus, remove);
-  body.appendChild(actions);
+  panels = items.map((item, index) => {
+    const angle = spreadAngles[index];
+    const anchorLngLat = item.type === "statistics" ? centroidLngLat : [item.point.lng, item.point.lat];
+    const anchorScreen = map.project(anchorLngLat);
 
-  layer.appendChild(body);
+    const el = document.createElement("div");
+    el.className = "spider-panel";
 
-  header.addEventListener("click", async () => {
-    layer.classList.toggle("open");
-    if (layer.classList.contains("open") && !entriesLoaded) {
-      try {
-        await loadEntries(point);
-        entriesLoaded = true;
-        renderEntries(entriesBox, point);
-      } catch (error) {
-        console.error(error);
-        entriesBox.innerHTML = '<div class="hint">Fehler beim Laden: ' + error.message + '</div>';
+    const inner = document.createElement("div");
+    inner.className = "spider-panel-inner";
+    el.appendChild(inner);
+
+    if (item.type === "statistics") {
+      inner.innerHTML =
+        '<button class="panel-close">×</button>' +
+        '<div class="panel-kicker">TRACE STATISTICS</div>' +
+        '<h3>' + escapeHtml(route.name) + '</h3>' +
+        '<p>Dauer: ' + (route.duration_minutes ? route.duration_minutes + ' min' : '–') + '</p>' +
+        '<p>Distanz: ' + (route.distance_km ? route.distance_km + ' km' : '–') + '</p>' +
+        (route.notes ? '<p>' + escapeHtml(route.notes) + '</p>' : '') +
+        (route.video_url ? '<video class="spider-video" controls src="' + route.video_url + '"></video>' : '');
+
+      if (route.video_url) {
+        const video = inner.querySelector(".spider-video");
+        video.addEventListener("loadedmetadata", () => {
+          applyAspectRatio(panel, video.videoWidth / video.videoHeight);
+        });
       }
-    }
-  });
-
-  visibility.addEventListener("click", async (event) => {
-    event.stopPropagation();
-    point.visible = point.visible === 0 ? 1 : 0;
-    visibility.innerText = point.visible === 0 ? "○" : "●";
-    const marker = markers.find(m => m.pointId === point.id);
-    if (marker) marker.getElement().style.display = point.visible === 0 ? "none" : "block";
-    await savePoint(point);
-  });
-
-  async function persist() { await savePoint(point); }
-
-  titleInput.addEventListener("change", () => { point.title = titleInput.value; name.innerText = point.title || "Objekt"; persist(); });
-  typeSelect.addEventListener("change", () => { point.type = typeSelect.value; typeTag.innerText = TYPE_LABELS[point.type] || point.type; persist(); });
-
-  if (routeSelect) {
-    routeSelect.addEventListener("change", async () => {
-      point.route_id = routeSelect.value || null;
-      await persist();
-      renderAll();
-    });
-  }
-
-  focus.addEventListener("click", () => map.flyTo({ center: [point.lng, point.lat], zoom: 14, duration: 900 }));
-
-  remove.addEventListener("click", async () => {
-    if (!confirm("Dieses Objekt wirklich löschen?")) return;
-    await api("/api/points/" + point.id, { method: "DELETE" });
-    const marker = markers.find(m => m.pointId === point.id);
-    if (marker) marker.remove();
-    markers = markers.filter(m => m.pointId !== point.id);
-    points = points.filter(p => p.id !== point.id);
-    renderAll();
-    status("Objekt gelöscht.");
-  });
-
-  return layer;
-}
-
-async function savePoint(point) {
-  await api("/api/points/" + point.id, {
-    method: "PUT",
-    body: JSON.stringify({
-      title: point.title, lng: point.lng, lat: point.lat,
-      type: point.type, route_id: point.route_id, visible: point.visible !== 0
-    })
-  });
-  status("Objekt gespeichert.");
-}
-
-/* ===== RENDER ROUTES + VERSCHACHTELTE OBJEKTE ===== */
-
-function renderRoutes() {
-  routesList.innerHTML = "";
-  if (routes.length === 0) {
-    routesList.innerHTML = '<div class="hint">Noch keine Traces importiert.</div>';
-    return;
-  }
-
-  routes.forEach(route => {
-    const layer = document.createElement("div");
-    layer.className = "layer";
-
-    const header = document.createElement("div");
-    header.className = "layer-header";
-    const color = document.createElement("div");
-    color.className = "layer-color";
-    color.style.background = route.color;
-    const name = document.createElement("div");
-    name.className = "layer-name";
-    name.innerText = route.name;
-    const visibility = document.createElement("button");
-    visibility.className = "visibility";
-    visibility.innerText = route.visible === 0 ? "○" : "●";
-
-    header.append(color, name, visibility);
-    layer.appendChild(header);
-
-    const body = document.createElement("div");
-    body.className = "layer-body";
-
-    const nameLabel = document.createElement("label");
-    nameLabel.innerText = "Name";
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.value = route.name;
-    nameLabel.appendChild(nameInput);
-
-    const colorLabel = document.createElement("label");
-    colorLabel.innerText = "Farbe";
-    const colorInput = document.createElement("input");
-    colorInput.type = "color";
-    colorInput.value = route.color;
-    colorLabel.appendChild(colorInput);
-
-    const widthLabel = document.createElement("label");
-    widthLabel.innerText = "Linienstärke";
-    const widthInput = document.createElement("input");
-    widthInput.type = "range";
-    widthInput.min = "1"; widthInput.max = "12";
-    widthInput.value = route.width;
-    widthLabel.appendChild(widthInput);
-
-    const durationLabel = document.createElement("label");
-    durationLabel.innerText = "Trace Statistics – Dauer (Minuten)";
-    const durationInput = document.createElement("input");
-    durationInput.type = "number";
-    durationInput.value = route.duration_minutes || "";
-    durationLabel.appendChild(durationInput);
-
-    const distanceLabel = document.createElement("label");
-    distanceLabel.innerText = "Trace Statistics – Distanz (km)";
-    const distanceInput = document.createElement("input");
-    distanceInput.type = "number";
-    distanceInput.step = "0.1";
-    distanceInput.value = route.distance_km || "";
-    distanceLabel.appendChild(distanceInput);
-
-    const notesLabel = document.createElement("label");
-    notesLabel.innerText = "Trace Statistics – Notizen (optional)";
-    const notesInput = document.createElement("textarea");
-    notesInput.value = route.notes || "";
-    notesLabel.appendChild(notesInput);
-
-    const videoLabel = document.createElement("label");
-    videoLabel.innerText = "Trace Statistics – Video";
-    const videoInput = document.createElement("input");
-    videoInput.type = "text"; videoInput.placeholder = "https://...";
-    videoInput.value = route.video_url || "";
-    const videoUpload = document.createElement("input");
-    videoUpload.type = "file"; videoUpload.accept = "video/*";
-    videoLabel.append(videoInput, videoUpload);
-
-    const actions = document.createElement("div");
-    actions.className = "actions";
-    const focus = document.createElement("button");
-    focus.innerText = "Fokussieren";
-    const remove = document.createElement("button");
-    remove.innerText = "Löschen";
-    remove.className = "delete";
-    actions.append(focus, remove);
-
-    body.append(nameLabel, colorLabel, widthLabel, durationLabel, distanceLabel, notesLabel, videoLabel, actions);
-
-    const objectsHeader = document.createElement("div");
-    objectsHeader.className = "objects-header";
-    const objectsTitle = document.createElement("div");
-    objectsTitle.className = "objects-title";
-    objectsTitle.innerText = "Objekte dieser Trace";
-    const addObjectButton = document.createElement("button");
-    addObjectButton.className = "small-button";
-    addObjectButton.innerText = "+ Objekt";
-    objectsHeader.append(objectsTitle, addObjectButton);
-    body.appendChild(objectsHeader);
-
-    const objectsHint = document.createElement("div");
-    objectsHint.className = "hint";
-    objectsHint.style.display = "none";
-    objectsHint.innerText = "Jetzt auf die Karte klicken, um das Objekt zu platzieren.";
-    body.appendChild(objectsHint);
-
-    const nestedList = document.createElement("div");
-    nestedList.className = "nested-list";
-    const routePoints = points.filter(p => p.route_id === route.id);
-    if (routePoints.length === 0) {
-      nestedList.innerHTML = '<div class="hint">Noch keine Objekte.</div>';
     } else {
-      routePoints.forEach(point => {
-        nestedList.appendChild(buildPointLayer(point, { showRouteSelect: false }));
+      const p = item.point;
+      inner.innerHTML =
+        '<button class="panel-close">×</button>' +
+        '<div class="panel-kicker">' + (TYPE_LABELS[p.type] || p.type) + '</div>' +
+        '<h3>' + escapeHtml(p.title || 'Objekt') + '</h3>' +
+        '<div class="entries-container"><p style="opacity:.5;">Lädt ...</p></div>';
+
+      loadPointEntries(p).then(entries => {
+        const container = inner.querySelector(".entries-container");
+        if (!entries.length) {
+          container.innerHTML = '<p style="opacity:.5;">Keine Einträge.</p>';
+          return;
+        }
+        container.innerHTML = entries.map(entry =>
+          '<div class="spider-entry">' +
+          (entry.image_url ? '<img src="' + entry.image_url + '" data-full="' + entry.image_url + '">' : '') +
+          (entry.note ? '<p>' + escapeHtml(entry.note) + '</p>' : '') +
+          '</div>'
+        ).join("");
+
+        container.querySelectorAll(".spider-entry img").forEach(img => {
+          img.addEventListener("click", (event) => {
+            event.stopPropagation();
+            openLightbox(img.dataset.full);
+          });
+        });
+
+        const firstImage = entries.find(e => e.image_url);
+        if (firstImage) {
+          const probe = new Image();
+          probe.onload = () => applyAspectRatio(panel, probe.naturalWidth / probe.naturalHeight);
+          probe.src = firstImage.image_url;
+        }
       });
     }
-    body.appendChild(nestedList);
 
-    layer.appendChild(body);
+    spiderLayer.appendChild(el);
 
-    header.addEventListener("click", () => layer.classList.toggle("open"));
+    const x = anchorScreen.x + Math.cos(angle) * radius;
+    const y = anchorScreen.y + Math.sin(angle) * radius;
+    el.style.left = x + "px";
+    el.style.top = y + "px";
 
-    addObjectButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (addingPointForRoute === route) {
-        addingPointForRoute = null;
-        addObjectButton.innerText = "+ Objekt";
-        objectsHint.style.display = "none";
-        status("Objektmodus abgebrochen.");
-      } else {
-        addingPointForRoute = route;
-        addObjectButton.innerText = "× Abbrechen";
-        objectsHint.style.display = "block";
-        status(`Objektmodus aktiv für Trace „${route.name}".`);
-      }
+    const panel = {
+      el, anchorLngLat, routeColor, x, y,
+      baseZoom: currentZoom,
+      baseOffsetX: x - anchorScreen.x,
+      baseOffsetY: y - anchorScreen.y,
+      baseWidth: 230,
+      baseHeight: 260
+    };
+
+    inner.querySelector(".panel-close").addEventListener("click", () => {
+      el.remove();
+      panels = panels.filter(n => n.el !== el);
+      drawLines();
     });
 
-    visibility.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      route.visible = route.visible === 0 ? 1 : 0;
-      visibility.innerText = route.visible === 0 ? "○" : "●";
-      drawRoute(route);
-      await saveRoute(route);
-    });
+    makeDraggable(panel);
 
-    async function persistRoute() {
-      await saveRoute(route);
-      drawRoute(route);
-    }
-
-    nameInput.addEventListener("change", () => { route.name = nameInput.value; name.innerText = route.name; persistRoute(); });
-    colorInput.addEventListener("change", () => { route.color = colorInput.value; color.style.background = route.color; persistRoute(); });
-    widthInput.addEventListener("change", () => { route.width = Number(widthInput.value); persistRoute(); });
-    durationInput.addEventListener("change", () => { route.duration_minutes = durationInput.value ? Number(durationInput.value) : null; persistRoute(); });
-    distanceInput.addEventListener("change", () => { route.distance_km = distanceInput.value ? Number(distanceInput.value) : null; persistRoute(); });
-    notesInput.addEventListener("change", () => { route.notes = notesInput.value; persistRoute(); });
-    videoInput.addEventListener("change", () => { route.video_url = videoInput.value; persistRoute(); });
-
-    videoUpload.addEventListener("change", async () => {
-      const file = videoUpload.files[0];
-      if (!file) return;
-      status("Video wird hochgeladen...");
-      try {
-        const uploaded = await uploadFile(file);
-        route.video_url = uploaded.url;
-        videoInput.value = uploaded.url;
-        await persistRoute();
-        status("Video hochgeladen.");
-      } catch (error) {
-        console.error(error);
-        status("Video-Upload fehlgeschlagen.");
-      }
-    });
-
-    focus.addEventListener("click", () => focusRoute(route));
-
-    remove.addEventListener("click", async () => {
-      if (!confirm("Diese Trace wirklich löschen?")) return;
-      await api("/api/routes/" + route.id, { method: "DELETE" });
-      removeRouteLayer(route);
-      routes = routes.filter(r => r.id !== route.id);
-      renderAll();
-      status("Trace gelöscht.");
-    });
-
-    routesList.appendChild(layer);
+    return panel;
   });
+
+  drawLines();
+  closeAllButton.style.display = "block";
 }
 
-async function saveRoute(route) {
-  await api("/api/routes/" + route.id, {
-    method: "PUT",
-    body: JSON.stringify({
-      name: route.name, color: route.color, width: route.width, coordinates: route.coordinates,
-      visible: route.visible !== 0, duration_minutes: route.duration_minutes,
-      distance_km: route.distance_km, notes: route.notes, video_url: route.video_url
-    })
+closeAllButton.addEventListener("click", closeAllPanels);
+
+map.on("move", () => {
+  const zoom = map.getZoom();
+  panels.forEach(n => {
+    const anchorScreen = map.project(n.anchorLngLat);
+    const scale = Math.min(1.8, Math.max(0.55, Math.pow(2, zoom - n.baseZoom)));
+    n.x = anchorScreen.x + n.baseOffsetX * scale;
+    n.y = anchorScreen.y + n.baseOffsetY * scale;
+    n.el.style.left = n.x + "px";
+    n.el.style.top = n.y + "px";
+    n.el.style.width = Math.round(n.baseWidth * scale) + "px";
+    n.el.style.height = Math.round(n.baseHeight * scale) + "px";
   });
-  status("Trace gespeichert.");
-}
-
-/* ===== ORPHAN POINTS (ohne Trace) ===== */
-
-function renderOrphanPoints() {
-  orphanPointsList.innerHTML = "";
-  const orphans = points.filter(p => !p.route_id);
-  if (orphans.length === 0) {
-    orphanPointsList.innerHTML = '<div class="hint">Keine.</div>';
-    return;
-  }
-  orphans.forEach(point => {
-    orphanPointsList.appendChild(buildPointLayer(point, { showRouteSelect: true }));
-  });
-}
-
-function renderAll() {
-  renderRoutes();
-  renderOrphanPoints();
-}
-
-/* ===== ADD POINT (pro Trace) ===== */
-
-map.on("click", async (event) => {
-  if (!addingPointForRoute) return;
-
-  const route = addingPointForRoute;
-  const newPoint = {
-    title: "Neues Objekt", lng: event.lngLat.lng, lat: event.lngLat.lat,
-    type: "lost_and_found", route_id: route.id, visible: true
-  };
-
-  const created = await api("/api/points", { method: "POST", body: JSON.stringify(newPoint) });
-  const point = { ...newPoint, id: created.id, visible: 1, entries: [] };
-  points.push(point);
-  createMarker(point);
-  addingPointForRoute = null;
-  renderAll();
-  status(`Objekt zu „${route.name}" hinzugefügt.`);
+  drawLines();
 });
-
-/* ===== GPX IMPORT ===== */
-
-document.getElementById("gpxButton").addEventListener("click", () => document.getElementById("gpxInput").click());
-
-document.getElementById("gpxInput").addEventListener("change", (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const xml = new DOMParser().parseFromString(e.target.result, "application/xml");
-      const trackPoints = xml.getElementsByTagName("trkpt");
-      const coordinates = [];
-
-      for (let i = 0; i < trackPoints.length; i++) {
-        const lat = parseFloat(trackPoints[i].getAttribute("lat"));
-        const lon = parseFloat(trackPoints[i].getAttribute("lon"));
-        if (!isNaN(lat) && !isNaN(lon)) coordinates.push([lon, lat]);
-      }
-
-      if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
-
-      pendingGpx = { coordinates, filename: file.name.replace(/\.gpx$/i, "") };
-      document.getElementById("routeName").value = pendingGpx.filename;
-      document.getElementById("dialog").classList.add("active");
-    } catch (error) {
-      console.error(error);
-      status("GPX konnte nicht gelesen werden.");
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = "";
-});
-
-document.getElementById("cancelGpx").addEventListener("click", () => {
-  pendingGpx = null;
-  document.getElementById("dialog").classList.remove("active");
-});
-
-document.getElementById("confirmGpx").addEventListener("click", async () => {
-  if (!pendingGpx) return;
-
-  const newRoute = {
-    name: document.getElementById("routeName").value.trim() || pendingGpx.filename,
-    color: document.getElementById("routeColor").value,
-    width: Number(document.getElementById("routeWidth").value),
-    coordinates: pendingGpx.coordinates,
-    visible: true
-  };
-
-  const created = await api("/api/routes", { method: "POST", body: JSON.stringify(newRoute) });
-  const route = { ...newRoute, id: created.id, visible: 1 };
-  routes.push(route);
-  drawRoute(route);
-  renderAll();
-  focusRoute(route);
-
-  pendingGpx = null;
-  document.getElementById("dialog").classList.remove("active");
-  status("Trace importiert.");
-});
-
-/* ===== LOAD ===== */
 
 async function loadData() {
   try {
-        routes = await api("/api/routes");
-    routes.forEach(r => {
-      let c = r.coordinates;
-      let tries = 0;
-      while (typeof c === "string" && tries < 5) { try { c = JSON.parse(c); } catch (e) { break; } tries++; }
-      r.coordinates = c;
-    });
-    points = await api("/api/points");
+    const [pointsResponse, routesResponse] = await Promise.all([
+      fetch("/api/points"),
+      fetch("/api/routes")
+    ]);
+    points = await pointsResponse.json();
+    routes = await routesResponse.json();
+
     routes.forEach(drawRoute);
     points.forEach(createMarker);
-    renderAll();
-    status("Karte bereit.");
   } catch (error) {
-    console.error(error);
-    status("Fehler beim Laden der Daten.");
+    console.error("Konnte Daten nicht laden:", error);
   }
 }
 
