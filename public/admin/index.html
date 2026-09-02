@@ -95,7 +95,16 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
       <div class="editor-title">Map Editor</div>
     </div>
   </div>
-
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Startseite</div>
+        <div class="section-subtitle">Intro-Text</div>
+      </div>
+    </div>
+    <textarea id="introText" style="min-height:100px;"></textarea>
+    <button id="saveIntro" class="small-button" style="margin-top:8px;width:100%;">Speichern</button>
+  </section>
   <section class="section">
     <div class="section-header">
       <div>
@@ -1027,7 +1036,19 @@ async function loadData() {
     status("Fehler beim Laden der Daten.");
   }
 }
-
+async function loadIntro() {
+  const data = await fetch("/api/settings/intro").then(r => r.json());
+  document.getElementById("introText").value = data.value;
+}
+document.getElementById("saveIntro").addEventListener("click", async () => {
+  await fetch("/api/settings/intro", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value: document.getElementById("introText").value })
+  });
+  status("Intro-Text gespeichert.");
+});
+loadIntro();
 map.on("load", loadData);
 </script>
 
