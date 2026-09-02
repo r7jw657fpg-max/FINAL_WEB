@@ -41,6 +41,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 .spider-entry:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
 .spider-entry img { width: 100%; border-radius: 4px; margin-bottom: 6px; display: block; cursor: pointer; }
 .spider-video { width: 100%; border-radius: 4px; margin-top: 8px; }
+.follow-landing-btn { width: 100%; margin-top: 10px; padding: 9px; border: 0; border-radius: 4px; background: #ffd400; color: #000; font-size: 10px; cursor: pointer; }
 
 #closeAllPanels { position: absolute; top: 58px; right: 18px; z-index: 26; display: none; padding: 9px 14px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; cursor: pointer; }
 
@@ -56,25 +57,13 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   color: #fff; font-size: 12px; line-height: 1.7; background: rgba(12,12,12,.75);
   padding: 18px; border-radius: 8px; z-index: 26; white-space: pre-wrap;
 }
-#tracePreviews {
-  position: absolute; bottom: 60px; left: 0; right: 0; z-index: 26;
-  display: flex; gap: 14px; overflow-x: auto; padding: 10px 20px;
-}
-.trace-card {
-  flex: 0 0 auto; width: 170px; padding: 14px; border-radius: 8px;
-  background: rgba(12,12,12,.88); color: #fff; cursor: pointer;
-  border: 2px solid transparent; transition: width .3s ease, border-color .2s;
-}
-.trace-card.expanded { width: 270px; }
-.trace-card h4 { margin: 0 0 6px; font-size: 13px; font-weight: 400; }
-.trace-card .trace-swatch { width: 100%; height: 6px; border-radius: 3px; margin-bottom: 10px; }
-.trace-card .follow-btn { margin-top: 10px; width: 100%; padding: 9px; border: 0; border-radius: 4px; background: #ffd400; color: #000; font-size: 10px; cursor: pointer; display: none; }
-.trace-card.expanded .follow-btn { display: block; }
 
 #statsOverlay {
-  position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center;
-  background: rgba(0,0,0,.6); color: #fff; font-family: monospace; font-size: 20px;
-  text-align: center; white-space: pre-wrap; padding: 40px;
+  position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: flex-start;
+  color: #fff; font-family: monospace; font-size: 20px;
+  text-align: left; white-space: pre-wrap; padding: 0 0 0 8%;
+  text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 24px rgba(0,0,0,.6);
+  pointer-events: none;
 }
 #statsOverlay.active { display: flex; }
 
@@ -115,7 +104,6 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 <button id="closeAllPanels">Alle Panels schließen</button>
 
 <div id="landingIntro"></div>
-<div id="tracePreviews"></div>
 
 <div id="statsOverlay"></div>
 
@@ -161,7 +149,6 @@ const closeAllButton = document.getElementById("closeAllPanels");
 const lightbox = document.getElementById("lightbox");
 const lightboxContent = document.getElementById("lightboxContent");
 const landingIntro = document.getElementById("landingIntro");
-const tracePreviews = document.getElementById("tracePreviews");
 const statsOverlay = document.getElementById("statsOverlay");
 const storyPlayer = document.getElementById("storyPlayer");
 const storyLayerA = document.getElementById("storyLayerA");
@@ -314,7 +301,6 @@ function makeDraggable(panel) {
 async function openTracePanels(route) {
   closeAllPanels();
   landingIntro.style.display = "none";
-  tracePreviews.style.display = "none";
 
   const relatedPoints = points.filter(p => p.route_id === route.id);
   let routeCoordinates = parseCoordinates(route.coordinates);
@@ -426,7 +412,11 @@ async function openTracePanels(route) {
   closeAllButton.style.display = "block";
 }
 
-closeAllButton.addEventListener("click", closeAllPanels);
+closeAllButton.addEventListener("click", () => {
+  closeAllPanels();
+  renderLandingPanels();
+  landingIntro.style.display = "block";
+});
 
 map.on("move", () => {
   const zoom = map.getZoom();
@@ -442,7 +432,7 @@ map.on("move", () => {
   drawLines();
 });
 
-/* ===== LANDING: Intro + Trace Previews ===== */
+/* ===== LANDING: Intro + Spider-Web-Vorschauen ===== */
 
 async function loadIntro() {
   try {
@@ -451,39 +441,55 @@ async function loadIntro() {
   } catch (error) { console.error(error); }
 }
 
-function renderTracePreviews() {
-  tracePreviews.innerHTML = "";
-  routes.forEach(route => {
-    const card = document.createElement("div");
-    card.className = "trace-card";
+function renderLandingPanels() {
+  closeAllPanels();
+  const total = routes.length;
+  if (total === 0) return;
 
-    const swatch = document.createElement("div");
-    swatch.className = "trace-swatch";
-    swatch.style.background = route.color || "#ff453a";
+  const radius = Math.max(260, (total * 300) / (Math.PI * 2));
+  const currentZoom = map.getZoom();
 
-    const title = document.createElement("h4");
-    title.innerText = route.name;
+  panels = routes.map((route, index) => {
+    const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
+    const anchorLngLat = routeCentroid(route);
+    const anchorScreen = map.project(anchorLngLat);
+    const routeColor = route.color || "#ff453a";
 
-    const followBtn = document.createElement("button");
-    followBtn.className = "follow-btn";
-    followBtn.innerText = "Follow this trace";
+    const el = document.createElement("div");
+    el.className = "spider-panel";
+    const inner = document.createElement("div");
+    inner.className = "spider-panel-inner";
+    el.appendChild(inner);
 
-    card.append(swatch, title, followBtn);
+    inner.innerHTML =
+      '<div class="panel-kicker">TRACE</div>' +
+      '<h3>' + escapeHtml(route.name) + '</h3>' +
+      '<button class="follow-landing-btn">Follow this trace</button>';
 
-    card.addEventListener("click", (event) => {
-      if (event.target === followBtn) return;
-      const wasExpanded = card.classList.contains("expanded");
-      document.querySelectorAll(".trace-card").forEach(c => c.classList.remove("expanded"));
-      if (!wasExpanded) card.classList.add("expanded");
-    });
+    spiderLayer.appendChild(el);
 
-    followBtn.addEventListener("click", (event) => {
+    const x = anchorScreen.x + Math.cos(angle) * radius;
+    const y = anchorScreen.y + Math.sin(angle) * radius;
+    el.style.left = x + "px"; el.style.top = y + "px";
+
+    const panel = {
+      el, anchorLngLat, routeColor, x, y,
+      baseZoom: currentZoom,
+      baseOffsetX: x - anchorScreen.x,
+      baseOffsetY: y - anchorScreen.y,
+      baseWidth: 230, baseHeight: 150
+    };
+
+    inner.querySelector(".follow-landing-btn").addEventListener("click", (event) => {
       event.stopPropagation();
       startFollowTrace(route);
     });
 
-    tracePreviews.appendChild(card);
+    makeDraggable(panel);
+    return panel;
   });
+
+  drawLines();
 }
 
 /* ===== FOLLOW THIS TRACE ===== */
@@ -501,22 +507,22 @@ function typewriterInto(el, text, speed) {
 }
 
 async function startFollowTrace(route) {
+  closeAllPanels();
   landingIntro.style.display = "none";
-  tracePreviews.style.display = "none";
 
   let coordinates = parseCoordinates(route.coordinates);
   const startCoord = coordinates[0];
 
   statsOverlay.classList.add("active");
-  map.flyTo({ center: startCoord, zoom: 15, duration: 4000 });
+  map.flyTo({ center: startCoord, zoom: 15, duration: 9000, essential: true });
 
   const statsText =
     route.name + "\n\n" +
     "Dauer: " + (route.duration_minutes ? route.duration_minutes + " min" : "–") + "\n" +
     "Distanz: " + (route.distance_km ? route.distance_km + " km" : "–");
-  await typewriterInto(statsOverlay, statsText, 35);
+  await typewriterInto(statsOverlay, statsText, 70);
 
-  await new Promise(r => setTimeout(r, 800));
+  await new Promise(r => setTimeout(r, 1200));
   statsOverlay.classList.remove("active");
 
   const steps = route.steps || [];
@@ -565,8 +571,8 @@ function playStory(steps, index, route) {
 
   storyPlayer.classList.add("active");
   const step = steps[index];
+  const prevStep = index > 0 ? steps[index - 1] : null;
   const isLast = index === steps.length - 1;
-  storyNextButton.innerText = index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter");
 
   const activeLayer = storyLayerA.classList.contains("visible") ? storyLayerA : storyLayerB;
   const nextLayer = activeLayer === storyLayerA ? storyLayerB : storyLayerA;
@@ -574,7 +580,8 @@ function playStory(steps, index, route) {
   nextLayer.innerHTML = "";
   nextLayer.appendChild(buildStepElement(step));
 
-  if (step.transition === "fade" && index > 0) {
+  const useFade = prevStep && prevStep.transition === "fade";
+  if (useFade) {
     nextLayer.classList.add("visible");
     setTimeout(() => { activeLayer.classList.remove("visible"); activeLayer.innerHTML = ""; }, 650);
   } else {
@@ -583,7 +590,17 @@ function playStory(steps, index, route) {
     nextLayer.classList.add("visible");
   }
 
-  storyNextButton.onclick = () => playStory(steps, index + 1, route);
+  if (step.media_type === "video") {
+    storyNextButton.style.display = "none";
+    const video = nextLayer.querySelector("video");
+    if (video) {
+      video.addEventListener("ended", () => playStory(steps, index + 1, route), { once: true });
+    }
+  } else {
+    storyNextButton.style.display = "block";
+    storyNextButton.innerText = index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter");
+    storyNextButton.onclick = () => playStory(steps, index + 1, route);
+  }
 }
 
 storyCloseButton.addEventListener("click", () => {
@@ -604,7 +621,7 @@ async function loadData() {
 
     routes.forEach(drawRoute);
     points.forEach(createMarker);
-    renderTracePreviews();
+    renderLandingPanels();
     loadIntro();
   } catch (error) {
     console.error("Konnte Daten nicht laden:", error);
