@@ -73,7 +73,6 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 #storyPlayer { position: fixed; inset: 0; z-index: 45; display: none; background: #000; }
 #storyPlayer.active { display: block; }
 .story-layer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
-.story-layer.visible { opacity: 1; }
 .story-layer img, .story-layer video { max-width: 100%; max-height: 100%; }
 .story-layer model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
 .story-overlay-text {
@@ -444,13 +443,6 @@ async function loadIntro() {
   } catch (error) { console.error(error); }
 }
 
-function landingThumbHtml(step) {
-  if (!step || !step.media_url) return "";
-  if (step.media_type === "video") return '<video src="' + step.media_url + '" muted playsinline preload="metadata"></video>';
-  if (step.media_type === "model") return '<model-viewer src="' + step.media_url + '" auto-rotate camera-controls="false"></model-viewer>';
-  return '<img src="' + step.media_url + '">';
-}
-
 function renderLandingPanels() {
   closeAllPanels();
   const total = routes.length;
@@ -464,7 +456,8 @@ function renderLandingPanels() {
     const anchorLngLat = routeCentroid(route);
     const anchorScreen = map.project(anchorLngLat);
     const routeColor = route.color || "#ff453a";
-        const el = document.createElement("div");
+
+    const el = document.createElement("div");
     el.className = "spider-panel";
     const inner = document.createElement("div");
     inner.className = "spider-panel-inner";
@@ -520,37 +513,35 @@ function typewriterInto(el, text, speed) {
   });
 }
 
-async function startFollowTrace(route) {
-  closeAllPanels();
-  landingIntro.style.display = "none";
+function buildStepElement(step) {
+  const wrap = document.createElement("div");
 
-  let coordinates = parseCoordinates(route.coordinates);
-  const startCoord = coordinates[0];
-
-  statsOverlay.classList.add("active");
-
-  const flyToDone = new Promise(resolve => map.once("moveend", resolve));
-  map.flyTo({ center: startCoord, zoom: 15, duration: 9000, essential: true });
-
-  const statsText =
-    route.name + "\n\n" +
-    "Dauer: " + (route.duration_minutes ? route.duration_minutes + " min" : "–") + "\n" +
-    "Distanz: " + (route.distance_km ? route.distance_km + " km" : "–");
-
-  await Promise.all([
-    typewriterInto(statsOverlay, statsText, 70),
-    flyToDone
-  ]);
-
-  await new Promise(r => setTimeout(r, 1000));
-  statsOverlay.classList.remove("active");
-
-  const steps = route.steps || [];
-  if (steps.length === 0) {
-    openTracePanels(route);
-    return;
+  if (step.media_type === "video") {
+    wrap.innerHTML = '<video src="' + step.media_url + '" autoplay playsinline></video>';
+  } else if (step.media_type === "model") {
+    wrap.innerHTML = '<model-viewer src="' + step.media_url + '" camera-controls auto-rotate exposure="1"></model-viewer>';
+  } else {
+    wrap.innerHTML = step.media_url ? '<img src="' + step.media_url + '">' : "";
   }
-  function crossfade(oldLayer, newLayer, durationMs) {
+
+  if (step.text_overlay) {
+    const text = document.createElement("div");
+    text.className = "story-overlay-text";
+    text.innerText = step.text_overlay;
+    wrap.appendChild(text);
+  }
+
+  if (step.audio_url) {
+    const audio = document.createElement("audio");
+    audio.src = step.audio_url;
+    audio.autoplay = true;
+    wrap.appendChild(audio);
+  }
+
+  return wrap;
+}
+
+function crossfade(oldLayer, newLayer, durationMs) {
   newLayer.style.opacity = "0";
   const oldVideo = oldLayer.querySelector("video");
   const oldAudio = oldLayer.querySelector("audio");
@@ -623,62 +614,37 @@ function playStory(steps, index, route) {
   }
 }
 
-  if (step.audio_url) {
-    const audio = document.createElement("audio");
-    audio.src = step.audio_url;
-    audio.autoplay = true;
-    wrap.appendChild(audio);
-  }
+async function startFollowTrace(route) {
+  closeAllPanels();
+  landingIntro.style.display = "none";
 
-  return wrap;
-}
+  let coordinates = parseCoordinates(route.coordinates);
+  const startCoord = coordinates[0];
 
-function playStory(steps, index, route) {
-  if (index >= steps.length) {
-    storyPlayer.classList.remove("active");
-    storyLayerA.innerHTML = ""; storyLayerB.innerHTML = "";
-    storyLayerA.classList.remove("visible"); storyLayerB.classList.remove("visible");
+  statsOverlay.classList.add("active");
+
+  const flyToDone = new Promise(resolve => map.once("moveend", resolve));
+  map.flyTo({ center: startCoord, zoom: 15, duration: 9000, essential: true });
+
+  const statsText =
+    route.name + "\n\n" +
+    "Dauer: " + (route.duration_minutes ? route.duration_minutes + " min" : "–") + "\n" +
+    "Distanz: " + (route.distance_km ? route.distance_km + " km" : "–");
+
+  await Promise.all([
+    typewriterInto(statsOverlay, statsText, 70),
+    flyToDone
+  ]);
+
+  await new Promise(r => setTimeout(r, 1000));
+  statsOverlay.classList.remove("active");
+
+  const steps = route.steps || [];
+  if (steps.length === 0) {
     openTracePanels(route);
     return;
   }
-
-  storyPlayer.classList.add("active");
-  const step = steps[index];
-  const prevStep = index > 0 ? steps[index - 1] : null;
-  const isLast = index === steps.length - 1;
-
-  const activeLayer = storyLayerA.classList.contains("visible") ? storyLayerA : storyLayerB;
-  const nextLayer = activeLayer === storyLayerA ? storyLayerB : storyLayerA;
-
-  nextLayer.innerHTML = "";
-  nextLayer.appendChild(buildStepElement(step));
-  nextLayer.classList.remove("visible");
-
-  const useFade = index === 0 || (prevStep && prevStep.transition === "fade");
-
-  // Reflow erzwingen, damit der Übergang garantiert animiert (auch beim allerersten Schritt)
-  void nextLayer.offsetWidth;
-
-  if (useFade) {
-    requestAnimationFrame(() => { nextLayer.classList.add("visible"); });
-    setTimeout(() => { activeLayer.classList.remove("visible"); activeLayer.innerHTML = ""; }, 850);
-  } else {
-    activeLayer.classList.remove("visible");
-    activeLayer.innerHTML = "";
-    requestAnimationFrame(() => { nextLayer.classList.add("visible"); });
-  }
-
-  if (step.media_type === "video") {
-    storyNextButton.style.display = "none";
-    const video = nextLayer.querySelector("video");
-    if (video) {
-      video.addEventListener("ended", () => playStory(steps, index + 1, route), { once: true });
-    }
-  } else {
-    storyNextButton.style.display = "block";
-    storyNextButton.innerText = index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter");
-    storyNextButton.onclick = () => playStory(steps, index + 1, route);
-  }
+  playStory(steps, 0, route);
 }
 
 storyCloseButton.addEventListener("click", () => {
