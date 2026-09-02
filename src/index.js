@@ -180,6 +180,63 @@ export default {
       return new Response("Method not allowed", { status: 405 });
     }
 
+    if (url.pathname.match(/^\/api\/routes\/[^/]+\/steps$/)) {
+      const routeId = url.pathname.split("/")[3];
+
+      if (method === "GET") {
+        const { results } = await env.DB.prepare("SELECT * FROM trace_steps WHERE route_id = ? ORDER BY position").bind(routeId).all();
+        return json(results);
+      }
+      if (method === "POST") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        const stepId = newId("step");
+        const { results } = await env.DB.prepare("SELECT MAX(position) as maxPos FROM trace_steps WHERE route_id = ?").bind(routeId).all();
+        const nextPos = (results[0].maxPos === null ? -1 : results[0].maxPos) + 1;
+        await env.DB.prepare(
+          "INSERT INTO trace_steps (id, route_id, position, media_type, media_url, text_overlay, audio_url, transition, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(
+          stepId, routeId, nextPos, body.media_type || "image", body.media_url || "",
+          body.text_overlay || "", body.audio_url || "", body.transition || "cut",
+          new Date().toISOString()
+        ).run();
+        return json({ id: stepId, position: nextPos }, 201);
+      }
+      return new Response("Method not allowed", { status: 405 });
+    }
+
+    if (url.pathname === "/api/steps/reorder") {
+      if (!isAuthenticated(request, env)) return requireAuth();
+      if (method !== "POST") return new Response("Method not allowed", { status: 405 });
+      const body = await request.json();
+      for (const item of body.order) {
+        await env.DB.prepare("UPDATE trace_steps SET position = ? WHERE id = ?").bind(item.position, item.id).run();
+      }
+      return json({ ok: true });
+    }
+
+    if (url.pathname.startsWith("/api/steps/")) {
+      const stepId = url.pathname.split("/api/steps/")[1];
+
+      if (method === "PUT") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        await env.DB.prepare(
+          "UPDATE trace_steps SET media_type=?, media_url=?, text_overlay=?, audio_url=?, transition=? WHERE id=?"
+        ).bind(
+          body.media_type || "image", body.media_url || "", body.text_overlay || "",
+          body.audio_url || "", body.transition || "cut", stepId
+        ).run();
+        return json({ ok: true });
+      }
+      if (method === "DELETE") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        await env.DB.prepare("DELETE FROM trace_steps WHERE id = ?").bind(stepId).run();
+        return json({ ok: true });
+      }
+      return new Response("Method not allowed", { status: 405 });
+    }
+
     if (url.pathname.startsWith("/api/routes/")) {
       const routeId = url.pathname.split("/api/routes/")[1];
 
@@ -190,7 +247,7 @@ export default {
           "UPDATE routes SET name=?, color=?, width=?, coordinates=?, visible=?, updated_at=?, duration_minutes=?, distance_km=?, notes=?, video_url=? WHERE id=?"
         ).bind(
           body.name || "", body.color || "#ff453a", Number(body.width || 5),
-          JSON.stringify(body.coordinates || []),
+          (typeof body.coordinates === "string" ? body.coordinates : JSON.stringify(body.coordinates || [])),
           body.visible === false ? 0 : 1, new Date().toISOString(),
           body.duration_minutes || null, body.distance_km || null,
           body.notes || "", body.video_url || "", routeId
@@ -200,6 +257,7 @@ export default {
 
       if (method === "DELETE") {
         if (!isAuthenticated(request, env)) return requireAuth();
+        await env.DB.prepare("DELETE FROM trace_steps WHERE route_id = ?").bind(routeId).run();
         await env.DB.prepare("DELETE FROM routes WHERE id = ?").bind(routeId).run();
         return json({ ok: true });
       }
