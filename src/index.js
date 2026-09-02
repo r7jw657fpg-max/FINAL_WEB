@@ -264,7 +264,23 @@ export default {
 
       return new Response("Method not allowed", { status: 405 });
     }
+    if (url.pathname.startsWith("/api/settings/")) {
+      const key = url.pathname.split("/api/settings/")[1];
 
+      if (method === "GET") {
+        const row = await env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind(key).first();
+        return json({ key, value: row ? row.value : "" });
+      }
+      if (method === "PUT") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        await env.DB.prepare(
+          "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+        ).bind(key, body.value || "").run();
+        return json({ ok: true });
+      }
+      return new Response("Method not allowed", { status: 405 });
+    }
     return env.ASSETS.fetch(request);
   },
 };
