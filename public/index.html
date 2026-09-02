@@ -464,15 +464,15 @@ function renderLandingPanels() {
     const anchorLngLat = routeCentroid(route);
     const anchorScreen = map.project(anchorLngLat);
     const routeColor = route.color || "#ff453a";
-    const firstStep = (route.steps || []).find(s => s.media_url);
-
-    const el = document.createElement("div");
+        const el = document.createElement("div");
     el.className = "spider-panel";
     const inner = document.createElement("div");
     inner.className = "spider-panel-inner";
     el.appendChild(inner);
 
-    const thumbHtml = firstStep ? '<div class="landing-thumb">' + landingThumbHtml(firstStep) + '</div>' : '';
+    const thumbHtml = route.video_url
+      ? '<div class="landing-thumb"><video src="' + route.video_url + '" muted playsinline preload="metadata"></video></div>'
+      : '';
 
     inner.innerHTML =
       thumbHtml +
@@ -491,7 +491,7 @@ function renderLandingPanels() {
       baseZoom: currentZoom,
       baseOffsetX: x - anchorScreen.x,
       baseOffsetY: y - anchorScreen.y,
-      baseWidth: 230, baseHeight: firstStep ? 250 : 150
+      baseWidth: 230, baseHeight: route.video_url ? 250 : 150
     };
 
     inner.querySelector(".follow-landing-btn").addEventListener("click", (event) => {
