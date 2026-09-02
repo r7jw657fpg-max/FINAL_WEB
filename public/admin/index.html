@@ -30,6 +30,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 button { font-family: inherit; cursor: pointer; }
 .small-button { padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 4px; background: white; color: black; font-size: 10px; }
 .small-button:hover { opacity: .8; }
+.small-button:disabled { opacity: .3; cursor: default; }
 
 .layer-list { display: flex; flex-direction: column; gap: 6px; }
 .layer { overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; background: rgba(255,255,255,.035); }
@@ -99,7 +100,7 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
     <div class="section-header">
       <div>
         <div class="section-title">Traces</div>
-        <div class="section-subtitle">GPX-Strecken + Objekte</div>
+        <div class="section-subtitle">GPX-Strecken + Objekte + Verlauf</div>
       </div>
       <button id="gpxButton" class="small-button">+ GPX</button>
     </div>
@@ -158,6 +159,16 @@ const statusElement = document.getElementById("status");
 
 function status(text) { statusElement.innerText = text; }
 
+function parseCoordinates(value) {
+  let result = value;
+  let tries = 0;
+  while (typeof result === "string" && tries < 5) {
+    try { result = JSON.parse(result); } catch (e) { break; }
+    tries++;
+  }
+  return result;
+}
+
 function markerIconSvg(type) {
   if (type === "scan") {
     return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10 L11 7 L14 7"/><path d="M21 10 L21 7 L18 7"/><path d="M11 22 L11 25 L14 25"/><path d="M21 22 L21 25 L18 25"/><line x1="9" y1="16" x2="23" y2="16"/></g></svg>';
@@ -212,8 +223,7 @@ function routeLayerId(route) { return "route-" + route.id; }
 
 function drawRoute(route) {
   const id = routeLayerId(route);
-  let coordinates = route.coordinates;
-  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+  let coordinates = parseCoordinates(route.coordinates);
 
   if (map.getSource(id)) {
     map.getSource(id).setData({ type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} });
@@ -237,8 +247,7 @@ function removeRouteLayer(route) {
 }
 
 function focusRoute(route) {
-  let coordinates = route.coordinates;
-  if (typeof coordinates === "string") coordinates = JSON.parse(coordinates);
+  let coordinates = parseCoordinates(route.coordinates);
   if (!coordinates || coordinates.length < 2) return;
   const bounds = new mapboxgl.LngLatBounds();
   coordinates.forEach(c => bounds.extend(c));
@@ -475,7 +484,146 @@ async function savePoint(point) {
   status("Objekt gespeichert.");
 }
 
-/* ===== RENDER ROUTES + VERSCHACHTELTE OBJEKTE ===== */
+/* ===== TIMELINE STEPS (pro Trace) ===== */
+
+function buildStepLayer(step, index, total, moveStep, deleteStep) {
+  const layer = document.createElement("div");
+  layer.className = "layer nested-layer";
+
+  const header = document.createElement("div");
+  header.className = "layer-header";
+  const badge = document.createElement("div");
+  badge.className = "layer-color";
+  badge.style.background = "#ffd400";
+  const nameWrap = document.createElement("div");
+  nameWrap.className = "layer-name";
+  nameWrap.innerText = "Schritt " + (index + 1) + " – " + (step.media_type || "image");
+  header.append(badge, nameWrap);
+  layer.appendChild(header);
+
+  const body = document.createElement("div");
+  body.className = "layer-body";
+
+  const typeLabel = document.createElement("label");
+  typeLabel.innerText = "Medien-Typ";
+  const typeSelect = document.createElement("select");
+  typeSelect.innerHTML =
+    '<option value="image"' + (step.media_type === "image" ? " selected" : "") + '>Bild</option>' +
+    '<option value="video"' + (step.media_type === "video" ? " selected" : "") + '>Video</option>' +
+    '<option value="model"' + (step.media_type === "model" ? " selected" : "") + '>3D-Scan (.glb)</option>';
+  typeLabel.appendChild(typeSelect);
+
+  const mediaLabel = document.createElement("label");
+  mediaLabel.innerText = "Hauptmedium";
+  const mediaUrlInput = document.createElement("input");
+  mediaUrlInput.type = "text"; mediaUrlInput.placeholder = "https://..."; mediaUrlInput.value = step.media_url || "";
+  const mediaUpload = document.createElement("input");
+  mediaUpload.type = "file";
+  mediaLabel.append(mediaUrlInput, mediaUpload);
+
+  const textLabel = document.createElement("label");
+  textLabel.innerText = "Text-Overlay (optional)";
+  const textInput = document.createElement("textarea");
+  textInput.value = step.text_overlay || "";
+  textLabel.appendChild(textInput);
+
+  const audioLabel = document.createElement("label");
+  audioLabel.innerText = "Sprachnotiz (optional)";
+  const audioUrlInput = document.createElement("input");
+  audioUrlInput.type = "text"; audioUrlInput.placeholder = "https://..."; audioUrlInput.value = step.audio_url || "";
+  const audioUpload = document.createElement("input");
+  audioUpload.type = "file"; audioUpload.accept = "audio/*";
+  audioLabel.append(audioUrlInput, audioUpload);
+
+  const transitionLabel = document.createElement("label");
+  transitionLabel.innerText = "Blende zum nächsten Schritt";
+  const transitionSelect = document.createElement("select");
+  transitionSelect.innerHTML =
+    '<option value="cut"' + (step.transition === "cut" ? " selected" : "") + '>Direkt (kein Übergang)</option>' +
+    '<option value="fade"' + (step.transition === "fade" ? " selected" : "") + '>Filmblende (Überblendung)</option>';
+  transitionLabel.appendChild(transitionSelect);
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const up = document.createElement("button");
+  up.innerText = "↑"; up.disabled = index === 0;
+  const down = document.createElement("button");
+  down.innerText = "↓"; down.disabled = index === total - 1;
+  const del = document.createElement("button");
+  del.innerText = "Löschen"; del.className = "delete";
+  actions.append(up, down, del);
+
+  body.append(typeLabel, mediaLabel, textLabel, audioLabel, transitionLabel, actions);
+  layer.appendChild(body);
+
+  header.addEventListener("click", () => layer.classList.toggle("open"));
+
+  async function persist() {
+    await api("/api/steps/" + step.id, {
+      method: "PUT",
+      body: JSON.stringify({
+        media_type: step.media_type, media_url: step.media_url,
+        text_overlay: step.text_overlay, audio_url: step.audio_url, transition: step.transition
+      })
+    });
+    status("Schritt gespeichert.");
+  }
+
+  typeSelect.addEventListener("change", () => {
+    step.media_type = typeSelect.value;
+    nameWrap.innerText = "Schritt " + (index + 1) + " – " + step.media_type;
+    persist();
+  });
+  mediaUrlInput.addEventListener("change", () => { step.media_url = mediaUrlInput.value; persist(); });
+  textInput.addEventListener("change", () => { step.text_overlay = textInput.value; persist(); });
+  audioUrlInput.addEventListener("change", () => { step.audio_url = audioUrlInput.value; persist(); });
+  transitionSelect.addEventListener("change", () => { step.transition = transitionSelect.value; persist(); });
+
+  mediaUpload.addEventListener("change", async () => {
+    const file = mediaUpload.files[0];
+    if (!file) return;
+    status("Medium wird hochgeladen...");
+    try {
+      const uploaded = await uploadFile(file);
+      step.media_url = uploaded.url;
+      mediaUrlInput.value = uploaded.url;
+      await persist();
+      status("Medium hochgeladen.");
+    } catch (error) {
+      console.error(error);
+      status("Upload fehlgeschlagen.");
+    }
+  });
+
+  audioUpload.addEventListener("change", async () => {
+    const file = audioUpload.files[0];
+    if (!file) return;
+    status("Sprachnotiz wird hochgeladen...");
+    try {
+      const uploaded = await uploadFile(file);
+      step.audio_url = uploaded.url;
+      audioUrlInput.value = uploaded.url;
+      await persist();
+      status("Sprachnotiz hochgeladen.");
+    } catch (error) {
+      console.error(error);
+      status("Upload fehlgeschlagen.");
+    }
+  });
+
+  up.addEventListener("click", () => moveStep(step.id, -1));
+  down.addEventListener("click", () => moveStep(step.id, 1));
+
+  del.addEventListener("click", async () => {
+    if (!confirm("Diesen Schritt wirklich löschen?")) return;
+    await deleteStep(step.id);
+    status("Schritt gelöscht.");
+  });
+
+  return layer;
+}
+
+/* ===== RENDER ROUTES + VERSCHACHTELTE OBJEKTE + TIMELINE ===== */
 
 function renderRoutes() {
   routesList.innerHTML = "";
@@ -569,6 +717,80 @@ function renderRoutes() {
 
     body.append(nameLabel, colorLabel, widthLabel, durationLabel, distanceLabel, notesLabel, videoLabel, actions);
 
+    /* ---- Timeline ---- */
+
+    const timelineHeader = document.createElement("div");
+    timelineHeader.className = "objects-header";
+    const timelineTitle = document.createElement("div");
+    timelineTitle.className = "objects-title";
+    timelineTitle.innerText = "Trace-Verlauf (Timeline)";
+    const addStepButton = document.createElement("button");
+    addStepButton.className = "small-button";
+    addStepButton.innerText = "+ Schritt";
+    timelineHeader.append(timelineTitle, addStepButton);
+    body.appendChild(timelineHeader);
+
+    const stepsList = document.createElement("div");
+    stepsList.className = "nested-list";
+    stepsList.innerHTML = '<div class="hint">Wird beim Öffnen geladen ...</div>';
+    body.appendChild(stepsList);
+
+    let stepsLoaded = false;
+    let stepsData = [];
+
+    function renderSteps() {
+      stepsList.innerHTML = "";
+      if (stepsData.length === 0) {
+        stepsList.innerHTML = '<div class="hint">Noch keine Schritte.</div>';
+        return;
+      }
+      stepsData.forEach((step, index) => {
+        stepsList.appendChild(buildStepLayer(step, index, stepsData.length, moveStep, deleteStep));
+      });
+    }
+
+    async function moveStep(stepId, direction) {
+      const idx = stepsData.findIndex(s => s.id === stepId);
+      if (idx < 0) return;
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= stepsData.length) return;
+      const temp = stepsData[idx];
+      stepsData[idx] = stepsData[newIdx];
+      stepsData[newIdx] = temp;
+      const order = stepsData.map((s, i) => ({ id: s.id, position: i }));
+      await api("/api/steps/reorder", { method: "POST", body: JSON.stringify({ order }) });
+      renderSteps();
+    }
+
+    async function deleteStep(stepId) {
+      await api("/api/steps/" + stepId, { method: "DELETE" });
+      stepsData = stepsData.filter(s => s.id !== stepId);
+      renderSteps();
+    }
+
+    async function loadAndRenderSteps() {
+      try {
+        stepsData = await api("/api/routes/" + route.id + "/steps");
+        renderSteps();
+      } catch (error) {
+        console.error(error);
+        stepsList.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
+      }
+    }
+
+    addStepButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const created = await api("/api/routes/" + route.id + "/steps", {
+        method: "POST",
+        body: JSON.stringify({ media_type: "image" })
+      });
+      stepsData.push({ id: created.id, route_id: route.id, position: created.position, media_type: "image", media_url: "", text_overlay: "", audio_url: "", transition: "cut" });
+      renderSteps();
+      status("Schritt hinzugefügt.");
+    });
+
+    /* ---- Objekte dieser Trace ---- */
+
     const objectsHeader = document.createElement("div");
     objectsHeader.className = "objects-header";
     const objectsTitle = document.createElement("div");
@@ -600,7 +822,13 @@ function renderRoutes() {
 
     layer.appendChild(body);
 
-    header.addEventListener("click", () => layer.classList.toggle("open"));
+    header.addEventListener("click", () => {
+      layer.classList.toggle("open");
+      if (layer.classList.contains("open") && !stepsLoaded) {
+        stepsLoaded = true;
+        loadAndRenderSteps();
+      }
+    });
 
     addObjectButton.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -788,6 +1016,7 @@ document.getElementById("confirmGpx").addEventListener("click", async () => {
 async function loadData() {
   try {
     routes = await api("/api/routes");
+    routes.forEach(r => { r.coordinates = parseCoordinates(r.coordinates); });
     points = await api("/api/points");
     routes.forEach(drawRoute);
     points.forEach(createMarker);
