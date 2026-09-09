@@ -837,7 +837,7 @@ document.getElementById("gpxInput").addEventListener("change", (event) => {
 
            if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
 
-      const cleanedCoordinates = simplifyGpxPoints(coordinates, 8);
+      const cleanedCoordinates = simplifyGpxPoints(coordinates, 18);
       pendingGpx = { coordinates: cleanedCoordinates, filename: file.name.replace(/\.gpx$/i, "") };
       document.getElementById("routeName").value = pendingGpx.filename;
       document.getElementById("dialog").classList.add("active");
