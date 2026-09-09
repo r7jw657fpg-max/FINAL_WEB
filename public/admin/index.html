@@ -33,17 +33,34 @@ button { font-family: inherit; cursor: pointer; }
 .small-button:disabled { opacity: .3; cursor: default; }
 
 .layer-list { display: flex; flex-direction: column; gap: 6px; }
-.layer { overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; background: rgba(255,255,255,.035); }
-.layer-header { display: flex; align-items: center; gap: 9px; padding: 10px; cursor: pointer; }
-.layer-header:hover { background: rgba(255,255,255,.04); }
+.layer { overflow: hidden; border: 1px solid rgba(0,0,0,.12); border-radius: 5px; background: #f4f4f4; }
+.layer-header { display: flex; align-items: center; gap: 9px; padding: 10px; cursor: pointer; color: #111; }
+.layer-header:hover { background: rgba(0,0,0,.04); }
 .layer-color { width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; }
-.layer-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
-.visibility { border: 0; background: transparent; color: white; opacity: .6; cursor: pointer; }
-.layer-body { display: none; padding: 12px; border-top: 1px solid rgba(255,255,255,.08); }
+.layer-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: #111; }
+.visibility { border: 0; background: transparent; color: #111; opacity: .6; cursor: pointer; }
+.layer-body { display: none; padding: 12px; border-top: 1px solid rgba(0,0,0,.1); }
 .layer.open .layer-body { display: block; }
+.layer-body label { color: #111; }
+.layer-body input[type=text], .layer-body textarea, .layer-body select, .layer-body input[type=number] {
+  background: #fff; color: #111; border: 1px solid rgba(0,0,0,.2);
+}
+.layer-body .hint { background: rgba(0,0,0,.05); color: #333; }
+.objects-title { color: #111; }
 
 .nested-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
-.nested-layer { overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 5px; background: rgba(255,255,255,.02); }
+.nested-layer { overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 5px; background: #4a4a4a; }
+.nested-layer .layer-header { color: #fff; }
+.nested-layer .layer-header:hover { background: rgba(255,255,255,.06); }
+.nested-layer .layer-name { color: #fff; }
+.nested-layer .visibility { color: #fff; }
+.nested-layer .layer-body { border-top: 1px solid rgba(255,255,255,.12); }
+.nested-layer .layer-body label { color: #fff; }
+.nested-layer .layer-body input[type=text], .nested-layer .layer-body textarea, .nested-layer .layer-body select, .nested-layer .layer-body input[type=number] {
+  background: #333; color: #fff; border: 1px solid rgba(255,255,255,.22);
+}
+.nested-layer .layer-body .hint { background: rgba(255,255,255,.06); color: #fff; }
+.nested-layer .objects-title { color: #fff; }
 
 label { display: block; margin-bottom: 13px; font-size: 10px; opacity: .8; }
 input[type=text], textarea, select, input[type=number] { display: block; width: 100%; margin-top: 6px; padding: 9px; border: 1px solid rgba(255,255,255,.18); border-radius: 4px; outline: none; background: #1c1c1c; color: white; font-family: inherit; }
@@ -625,13 +642,13 @@ function renderRoutes() {
     notesInput.value = route.notes || "";
     notesLabel.appendChild(notesInput);
 
-    const videoLabel = document.createElement("label");
-    videoLabel.innerText = "Trace Statistics – Video";
+      const videoLabel = document.createElement("label");
+    videoLabel.innerText = "Trace Statistics – Medium (Bild oder Video)";
     const videoInput = document.createElement("input");
     videoInput.type = "text"; videoInput.placeholder = "https://...";
     videoInput.value = route.video_url || "";
     const videoUpload = document.createElement("input");
-    videoUpload.type = "file"; videoUpload.accept = "video/*";
+    videoUpload.type = "file"; videoUpload.accept = "image/*,video/*";
     videoLabel.append(videoInput, videoUpload);
 
     const actions = document.createElement("div");
