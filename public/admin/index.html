@@ -495,15 +495,19 @@ async function savePoint(point) {
 
 /* ===== TIMELINE STEPS (pro Trace) ===== */
 
+const STEP_COLORS = ["#ffd400", "#4dd0e1", "#ff6b6b", "#a78bfa", "#66bb6a", "#ff9f43"];
+
 function buildStepLayer(step, index, total, moveStep, deleteStep) {
+  const stepColor = STEP_COLORS[index % STEP_COLORS.length];
   const layer = document.createElement("div");
   layer.className = "layer nested-layer";
+  layer.style.borderLeft = "4px solid " + stepColor;
 
   const header = document.createElement("div");
   header.className = "layer-header";
   const badge = document.createElement("div");
   badge.className = "layer-color";
-  badge.style.background = "#ffd400";
+  badge.style.background = stepColor;
   const nameWrap = document.createElement("div");
   nameWrap.className = "layer-name";
   nameWrap.innerText = "Schritt " + (index + 1) + " – " + (step.media_type || "image");
