@@ -214,7 +214,7 @@ export default {
       return json({ ok: true });
     }
 
-    if (url.pathname.startsWith("/api/steps/")) {
+        if (url.pathname.startsWith("/api/steps/") && !url.pathname.includes("/items")) {
       const stepId = url.pathname.split("/api/steps/")[1];
 
       if (method === "PUT") {
