@@ -617,7 +617,9 @@ function animateFootstep(route, fromLngLat, toLngLat, durationMs) {
   const start = performance.now();
   function step(now) {
     const t = Math.max(0, Math.min(1, (now - start) / durationMs));
-    footstepMarker.setLngLat(interpolateAlong(segment, t));
+    const pos = interpolateAlong(segment, t);
+    footstepMarker.setLngLat(pos);
+    map.jumpTo({ center: pos, zoom: 20, padding: cameraPadding() });
     if (t < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
@@ -812,8 +814,7 @@ function playStory(steps, index, route) {
       nextLayer.style.opacity = "1";
     }
 
-       if (target) {
-      map.flyTo({ center: target, zoom: 19.5, duration: durationMs, essential: true, padding: cameraPadding() });
+           if (target) {
       updateLiveStats(route, target);
       animateFootstep(route, lastCameraTarget, target, durationMs);
       lastCameraTarget = target;
@@ -862,8 +863,8 @@ async function startFollowTrace(route) {
 
    lastCameraTarget = startCoord;
   const flyToDone = new Promise(resolve => map.once("moveend", resolve));
-  map.flyTo({ center: startCoord, zoom: 19.5, duration: 7500, essential: true });
-
+  map.flyTo({ center: startCoord, zoom: 20, duration: 7500, essential: true });
+  
   const statsText =
     route.name + "\n\n" +
     "Dauer: " + (route.duration_minutes ? route.duration_minutes + " min" : "–") + "\n" +
