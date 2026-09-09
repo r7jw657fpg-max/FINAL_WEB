@@ -59,6 +59,17 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 .hint { padding: 9px; border-radius: 4px; background: rgba(255,255,255,.04); font-size: 10px; line-height: 1.5; opacity: .5; }
 #status { font-size: 9px; opacity: .4; }
 
+.entries-box { margin-top: 6px; margin-bottom: 13px; padding: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; background: rgba(255,255,255,.02); }
+.entries-title { font-size: 10px; opacity: .7; margin-bottom: 8px; }
+.entry-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.06); }
+.entry-item:first-child { border-top: 0; }
+.entry-thumb { width: 34px; height: 34px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: #222; }
+.entry-note { flex: 1; font-size: 10px; opacity: .8; white-space: pre-wrap; word-break: break-word; }
+.entry-delete { border: 0; background: transparent; color: #ff453a; font-size: 14px; cursor: pointer; flex-shrink: 0; }
+.entry-form { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,.1); }
+.entry-form label { margin-bottom: 8px; }
+.entry-add-button { width: 100%; margin-top: 4px; padding: 7px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
+
 .objects-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px; }
 .objects-title { font-size: 10px; opacity: .7; }
 
@@ -259,6 +270,100 @@ function focusRoute(route) {
   map.fitBounds(bounds, { padding: 100, duration: 900 });
 }
 
+/* ===== FOUND ITEMS (pro Schritt) ===== */
+
+function buildItemsBox(step) {
+  const itemsBox = document.createElement("div");
+  itemsBox.className = "entries-box";
+  itemsBox.innerHTML = '<div class="hint">Wird beim Öffnen geladen ...</div>';
+  let itemsLoaded = false;
+  let itemsData = [];
+
+  function renderItems() {
+    itemsBox.innerHTML = "";
+    const title = document.createElement("div");
+    title.className = "entries-title";
+    title.innerText = "Found Items (additiv, bleiben in der Story sichtbar)";
+    itemsBox.appendChild(title);
+
+    itemsData.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "entry-item";
+      const thumb = document.createElement("img");
+      thumb.className = "entry-thumb";
+      thumb.src = item.image_url || "";
+      const note = document.createElement("div");
+      note.className = "entry-note";
+      note.innerText = item.note || "";
+      const del = document.createElement("button");
+      del.className = "entry-delete";
+      del.innerText = "×";
+      del.addEventListener("click", async () => {
+        if (!confirm("Dieses Item löschen?")) return;
+        await api("/api/items/" + item.id, { method: "DELETE" });
+        itemsData = itemsData.filter(i => i.id !== item.id);
+        renderItems();
+        status("Item gelöscht.");
+      });
+      row.append(thumb, note, del);
+      itemsBox.appendChild(row);
+    });
+
+    const form = document.createElement("div");
+    form.className = "entry-form";
+    const fileLabel = document.createElement("label");
+    fileLabel.innerText = "Neues Foto";
+    const fileInput = document.createElement("input");
+    fileInput.type = "file"; fileInput.accept = "image/*";
+    fileLabel.appendChild(fileInput);
+    const noteLabel = document.createElement("label");
+    noteLabel.innerText = "Notiz (optional)";
+    const noteInput = document.createElement("textarea");
+    noteLabel.appendChild(noteInput);
+    const addButton = document.createElement("button");
+    addButton.className = "entry-add-button";
+    addButton.innerText = "+ Item hinzufügen";
+    addButton.addEventListener("click", async () => {
+      let imageUrl = "";
+      if (fileInput.files[0]) {
+        status("Foto wird hochgeladen...");
+        try {
+          const uploaded = await uploadFile(fileInput.files[0]);
+          imageUrl = uploaded.url;
+        } catch (error) {
+          console.error(error);
+          status("Foto-Upload fehlgeschlagen.");
+          return;
+        }
+      }
+      const created = await api("/api/steps/" + step.id + "/items", {
+        method: "POST",
+        body: JSON.stringify({ image_url: imageUrl, note: noteInput.value })
+      });
+      itemsData.push({ id: created.id, image_url: imageUrl, note: noteInput.value });
+      renderItems();
+      status("Item hinzugefügt.");
+    });
+    form.append(fileLabel, noteLabel, addButton);
+    itemsBox.appendChild(form);
+  }
+
+  return {
+    el: itemsBox,
+    load: async () => {
+      if (itemsLoaded) return;
+      itemsLoaded = true;
+      try {
+        itemsData = await api("/api/steps/" + step.id + "/items");
+        renderItems();
+      } catch (error) {
+        console.error(error);
+        itemsBox.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
+      }
+    }
+  };
+}
+
 /* ===== TIMELINE STEPS ===== */
 
 function buildStepLayer(step, index, total, moveStep, deleteStep) {
@@ -340,80 +445,9 @@ function buildStepLayer(step, index, total, moveStep, deleteStep) {
     '<option value="cut"' + (step.transition === "cut" ? " selected" : "") + '>Direkt (kein Übergang)</option>' +
     '<option value="fade"' + (step.transition === "fade" ? " selected" : "") + '>Filmblende (Überblendung)</option>';
   transitionLabel.appendChild(transitionSelect);
-  const itemsBox = document.createElement("div");
-  itemsBox.className = "entries-box";
-  itemsBox.innerHTML = '<div class="hint">Wird beim Öffnen geladen ...</div>';
-  let itemsLoaded = false;
-  let itemsData = [];
 
-  function renderItems() {
-    itemsBox.innerHTML = "";
-    const title = document.createElement("div");
-    title.className = "entries-title";
-    title.innerText = "Found Items (additiv)";
-    itemsBox.appendChild(title);
+  const itemsBoxWrap = buildItemsBox(step);
 
-    itemsData.forEach(item => {
-      const row = document.createElement("div");
-      row.className = "entry-item";
-      const thumb = document.createElement("img");
-      thumb.className = "entry-thumb";
-      thumb.src = item.image_url || "";
-      const note = document.createElement("div");
-      note.className = "entry-note";
-      note.innerText = item.note || "";
-      const del = document.createElement("button");
-      del.className = "entry-delete";
-      del.innerText = "×";
-      del.addEventListener("click", async () => {
-        if (!confirm("Dieses Item löschen?")) return;
-        await api("/api/items/" + item.id, { method: "DELETE" });
-        itemsData = itemsData.filter(i => i.id !== item.id);
-        renderItems();
-        status("Item gelöscht.");
-      });
-      row.append(thumb, note, del);
-      itemsBox.appendChild(row);
-    });
-
-    const form = document.createElement("div");
-    form.className = "entry-form";
-    const fileLabel = document.createElement("label");
-    fileLabel.innerText = "Neues Foto";
-    const fileInput = document.createElement("input");
-    fileInput.type = "file"; fileInput.accept = "image/*";
-    fileLabel.appendChild(fileInput);
-    const noteLabel = document.createElement("label");
-    noteLabel.innerText = "Notiz (optional)";
-    const noteInput = document.createElement("textarea");
-    noteLabel.appendChild(noteInput);
-    const addButton = document.createElement("button");
-    addButton.className = "entry-add-button";
-    addButton.innerText = "+ Item hinzufügen";
-    addButton.addEventListener("click", async () => {
-      let imageUrl = "";
-      if (fileInput.files[0]) {
-        status("Foto wird hochgeladen...");
-        try {
-          const uploaded = await uploadFile(fileInput.files[0]);
-          imageUrl = uploaded.url;
-        } catch (error) {
-          console.error(error);
-          status("Foto-Upload fehlgeschlagen.");
-          return;
-        }
-      }
-      const created = await api("/api/steps/" + step.id + "/items", {
-        method: "POST",
-        body: JSON.stringify({ image_url: imageUrl, note: noteInput.value })
-      });
-      itemsData.push({ id: created.id, image_url: imageUrl, note: noteInput.value });
-      renderItems();
-      status("Item hinzugefügt.");
-    });
-    form.append(fileLabel, noteLabel, addButton);
-    itemsBox.appendChild(form);
-  }
   const actions = document.createElement("div");
   actions.className = "actions";
   const up = document.createElement("button");
@@ -424,22 +458,14 @@ function buildStepLayer(step, index, total, moveStep, deleteStep) {
   del.innerText = "Löschen"; del.className = "delete";
   actions.append(up, down, del);
 
-  body.append(typeLabel, categoryLabel, positionBox, mediaLabel, textLabel, audioLabel, transitionLabel, itemsBox, actions);
+  body.append(typeLabel, categoryLabel, positionBox, mediaLabel, textLabel, audioLabel, transitionLabel, itemsBoxWrap.el, actions);
   layer.appendChild(body);
 
-  header.addEventListener("click", async () => {
+  header.addEventListener("click", () => {
     layer.classList.toggle("open");
-    if (layer.classList.contains("open") && !itemsLoaded) {
-      itemsLoaded = true;
-      try {
-        itemsData = await api("/api/steps/" + step.id + "/items");
-        renderItems();
-      } catch (error) {
-        console.error(error);
-        itemsBox.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
-      }
-    }
+    if (layer.classList.contains("open")) itemsBoxWrap.load();
   });
+
   async function persist() {
     await api("/api/steps/" + step.id, {
       method: "PUT",
@@ -618,8 +644,6 @@ function renderRoutes() {
     actions.append(focus, remove);
 
     body.append(nameLabel, colorLabel, widthLabel, durationLabel, distanceLabel, notesLabel, videoLabel, actions);
-
-    /* ---- Timeline ---- */
 
     const timelineHeader = document.createElement("div");
     timelineHeader.className = "objects-header";
