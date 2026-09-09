@@ -515,6 +515,11 @@ function typewriterInto(el, text, speed) {
 
 function buildStepElement(step) {
   const wrap = document.createElement("div");
+  wrap.style.width = "100%";
+  wrap.style.height = "100%";
+  wrap.style.display = "flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
 
   if (step.media_type === "video") {
     wrap.innerHTML = '<video src="' + step.media_url + '" autoplay playsinline></video>';
