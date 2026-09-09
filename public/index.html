@@ -224,7 +224,9 @@ function escapeHtml(str) {
   div.innerText = str || "";
   return div.innerHTML;
 }
-
+function isVideoUrl(url) {
+  return /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(url || "");
+}
 function markerIconSvg(type) {
   if (type === "scan") {
     return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10 L11 7 L14 7"/><path d="M21 10 L21 7 L18 7"/><path d="M11 22 L11 25 L14 25"/><path d="M21 22 L21 25 L18 25"/><line x1="9" y1="16" x2="23" y2="16"/></g></svg>';
@@ -399,8 +401,12 @@ async function openTracePanels(route) {
         '<p>Dauer: ' + (route.duration_minutes ? route.duration_minutes + ' min' : '–') + '</p>' +
         '<p>Distanz: ' + (route.distance_km ? route.distance_km + ' km' : '–') + '</p>' +
         (route.notes ? '<p>' + escapeHtml(route.notes) + '</p>' : '') +
-        (route.video_url ? '<video class="spider-video" controls src="' + route.video_url + '"></video>' : '');
-      if (route.video_url) {
+               (route.video_url
+          ? (isVideoUrl(route.video_url)
+              ? '<video class="spider-video" controls src="' + route.video_url + '"></video>'
+              : '<img class="spider-video" src="' + route.video_url + '">')
+          : '');
+      if (route.video_url && isVideoUrl(route.video_url)) {
         const video = inner.querySelector(".spider-video");
         video.addEventListener("loadedmetadata", () => applyAspectRatio(panel, video.videoWidth / video.videoHeight));
       }
@@ -501,10 +507,11 @@ function renderLandingPanels() {
     inner.className = "spider-panel-inner";
     el.appendChild(inner);
 
-    const thumbHtml = route.video_url
-      ? '<div class="landing-thumb"><video src="' + route.video_url + '" muted playsinline preload="metadata"></video></div>'
+        const thumbHtml = route.video_url
+      ? '<div class="landing-thumb">' + (isVideoUrl(route.video_url)
+          ? '<video src="' + route.video_url + '" muted playsinline preload="metadata"></video>'
+          : '<img src="' + route.video_url + '">') + '</div>'
       : '';
-
     inner.innerHTML =
       thumbHtml +
       '<div class="panel-kicker">TRACE</div>' +
@@ -559,7 +566,65 @@ function distanceAlongPath(coordinates, target) {
   for (let i = 1; i <= nearestIdx; i++) total += haversine(coordinates[i - 1], coordinates[i]);
   return total;
 }
+function pathSegmentBetween(coordinates, fromLngLat, toLngLat) {
+  let fromIdx = 0, fromDist = Infinity, toIdx = 0, toDist = Infinity;
+  coordinates.forEach((c, i) => {
+    const df = haversine(c, fromLngLat);
+    if (df < fromDist) { fromDist = df; fromIdx = i; }
+    const dt = haversine(c, toLngLat);
+    if (dt < toDist) { toDist = dt; toIdx = i; }
+  });
+  if (fromIdx <= toIdx) return coordinates.slice(fromIdx, toIdx + 1);
+  return coordinates.slice(toIdx, fromIdx + 1).reverse();
+}
 
+function interpolateAlong(segment, t) {
+  if (segment.length === 1) return segment[0];
+  const lengths = [];
+  let total = 0;
+  for (let i = 1; i < segment.length; i++) {
+    const d = haversine(segment[i - 1], segment[i]);
+    lengths.push(d);
+    total += d;
+  }
+  let target = total * t;
+  let acc = 0;
+  for (let i = 0; i < lengths.length; i++) {
+    if (acc + lengths[i] >= target) {
+      const localT = lengths[i] === 0 ? 0 : (target - acc) / lengths[i];
+      const a = segment[i], b = segment[i + 1];
+      return [a[0] + (b[0] - a[0]) * localT, a[1] + (b[1] - a[1]) * localT];
+    }
+    acc += lengths[i];
+  }
+  return segment[segment.length - 1];
+}
+
+let footstepMarker = null;
+let lastCameraTarget = null;
+
+function animateFootstep(route, fromLngLat, toLngLat, durationMs) {
+  if (!fromLngLat || !toLngLat) return;
+  const coordinates = parseCoordinates(route.coordinates);
+  const segment = pathSegmentBetween(coordinates, fromLngLat, toLngLat);
+  if (!footstepMarker) {
+    const el = document.createElement("div");
+    el.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="#ffd400" stroke="#000" stroke-width="2"/></svg>';
+    footstepMarker = new mapboxgl.Marker({ element: el }).setLngLat(fromLngLat).addTo(map);
+  }
+  footstepMarker.setLngLat(fromLngLat);
+  const start = performance.now();
+  function step(now) {
+    const t = Math.max(0, Math.min(1, (now - start) / durationMs));
+    footstepMarker.setLngLat(interpolateAlong(segment, t));
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function cameraPadding() {
+  return { top: 0, bottom: 0, left: 0, right: window.innerWidth * 0.62 };
+}
 function findStepTarget(steps, index) {
   const step = steps[index];
   if (step.category && step.category !== "weg" && step.lng && step.lat) return [step.lng, step.lat];
@@ -698,7 +763,8 @@ async function loadStepItems(step) {
 }
 
 function playStory(steps, index, route) {
-  if (index >= steps.length) {
+    if (index >= steps.length) {
+    if (footstepMarker) { footstepMarker.remove(); footstepMarker = null; }
     storyPanelsWrap.classList.remove("active");
     storyLayerA.innerHTML = ""; storyLayerB.innerHTML = "";
     storyLayerA.style.opacity = "0"; storyLayerB.style.opacity = "0";
@@ -745,9 +811,11 @@ function playStory(steps, index, route) {
       nextLayer.style.opacity = "1";
     }
 
-    if (target) {
-      map.flyTo({ center: target, zoom: 18.5, duration: durationMs, essential: true });
+       if (target) {
+      map.flyTo({ center: target, zoom: 19.5, duration: durationMs, essential: true, padding: cameraPadding() });
       updateLiveStats(route, target);
+      animateFootstep(route, lastCameraTarget, target, durationMs);
+      lastCameraTarget = target;
     }
 
     if (built.video) {
@@ -791,8 +859,9 @@ async function startFollowTrace(route) {
 
   statsOverlay.classList.add("active");
 
+   lastCameraTarget = startCoord;
   const flyToDone = new Promise(resolve => map.once("moveend", resolve));
-  map.flyTo({ center: startCoord, zoom: 15, duration: 7500, essential: true });
+  map.flyTo({ center: startCoord, zoom: 19.5, duration: 7500, essential: true });
 
   const statsText =
     route.name + "\n\n" +
