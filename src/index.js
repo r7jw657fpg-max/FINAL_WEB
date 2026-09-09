@@ -104,10 +104,10 @@ export default {
         return json({ ok: true });
       }
 
-      if (method === "DELETE") {
+           if (method === "DELETE") {
         if (!isAuthenticated(request, env)) return requireAuth();
-        await env.DB.prepare("DELETE FROM point_entries WHERE point_id = ?").bind(pointId).run();
-        await env.DB.prepare("DELETE FROM points WHERE id = ?").bind(pointId).run();
+        await env.DB.prepare("DELETE FROM step_items WHERE step_id = ?").bind(stepId).run();
+        await env.DB.prepare("DELETE FROM trace_steps WHERE id = ?").bind(stepId).run();
         return json({ ok: true });
       }
 
@@ -277,6 +277,40 @@ export default {
         await env.DB.prepare(
           "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
         ).bind(key, body.value || "").run();
+        return json({ ok: true });
+      }
+      return new Response("Method not allowed", { status: 405 });
+    }
+        if (url.pathname.match(/^\/api\/steps\/[^/]+\/items$/)) {
+      const stepId = url.pathname.split("/")[3];
+      if (method === "GET") {
+        const { results } = await env.DB.prepare("SELECT * FROM step_items WHERE step_id = ? ORDER BY created_at").bind(stepId).all();
+        return json(results);
+      }
+      if (method === "POST") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        const itemId = newId("item");
+        await env.DB.prepare(
+          "INSERT INTO step_items (id, step_id, image_url, note, created_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind(itemId, stepId, body.image_url || "", body.note || "", new Date().toISOString()).run();
+        return json({ id: itemId }, 201);
+      }
+      return new Response("Method not allowed", { status: 405 });
+    }
+
+    if (url.pathname.startsWith("/api/items/")) {
+      const itemId = url.pathname.split("/api/items/")[1];
+      if (method === "DELETE") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        await env.DB.prepare("DELETE FROM step_items WHERE id = ?").bind(itemId).run();
+        return json({ ok: true });
+      }
+      if (method === "PUT") {
+        if (!isAuthenticated(request, env)) return requireAuth();
+        const body = await request.json();
+        await env.DB.prepare("UPDATE step_items SET image_url=?, note=? WHERE id=?")
+          .bind(body.image_url || "", body.note || "", itemId).run();
         return json({ ok: true });
       }
       return new Response("Method not allowed", { status: 405 });
