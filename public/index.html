@@ -9,7 +9,8 @@
 <style>
 * { box-sizing: border-box; }
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
-#map { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; }
+#map { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; transition: right .3s ease; }
+body.story-mode #map { right: 50%; }
 
 .marker-badge { width: 30px; height: 30px; border-radius: 50%; background: #0c0c0c; border: 2px solid #ffd400; display: flex; align-items: center; justify-content: center; }
 
@@ -67,13 +68,24 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 }
 #statsOverlay.active { display: flex; }
 
-#storyPlayer { position: fixed; inset: 0; z-index: 45; display: none; background: #000; }
-#storyPlayer.active { display: block; }
+#liveStats {
+  position: absolute; top: 60px; left: 20px; z-index: 26;
+  background: rgba(12,12,12,.85); color: #fff; padding: 12px 16px;
+  border-radius: 6px; font-family: monospace; font-size: 12px; display: none;
+}
+#liveStats.active { display: block; }
+
+#storyContainer {
+  position: fixed; top: 40px; right: 0; bottom: 40px; width: 50%;
+  background: #000; z-index: 45; display: none; flex-direction: column;
+}
+#storyContainer.active { display: flex; }
+#storyMediaArea { position: relative; flex: 1 1 auto; overflow: hidden; min-height: 0; }
 .story-layer { position: absolute; inset: 0; display: flex; align-items: stretch; justify-content: center; opacity: 0; }
-.story-layer-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.story-layer-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
 .story-layer img, .story-layer video { max-width: 100%; max-height: 100%; }
 .story-layer model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
-  .model-loading {
+.model-loading {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   color: #fff; font-size: 13px; background: rgba(0,0,0,.6); padding: 10px 16px;
   border-radius: 4px; pointer-events: none;
@@ -88,10 +100,20 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
   font-size: 11px; cursor: pointer; z-index: 5;
 }
 #storyCloseButton {
-  position: absolute; top: 20px; right: 26px; z-index: 5;
-  background: none; border: 0; color: #fff; font-size: 30px; cursor: pointer; opacity: .7;
+  position: absolute; top: 14px; right: 18px; z-index: 5;
+  background: none; border: 0; color: #fff; font-size: 28px; cursor: pointer; opacity: .7;
 }
 #storyCloseButton:hover { opacity: 1; }
+
+#foundItemsPanel {
+  flex: 0 0 auto; max-height: 34%; overflow-y: auto; background: #0c0c0c;
+  border-top: 2px solid #ffd400; padding: 14px;
+}
+#foundItemsPanel h4 { margin: 0 0 10px; font-size: 11px; color: #fff; text-transform: uppercase; letter-spacing: .08em; opacity: .7; }
+.found-item { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.found-item:first-child { border-top: 0; }
+.found-item img { width: 46px; height: 46px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: #222; }
+.found-item p { margin: 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -109,14 +131,21 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family
 <button id="closeAllPanels">Alle Panels schließen</button>
 
 <div id="landingIntro"></div>
+<div id="liveStats"></div>
 
 <div id="statsOverlay"></div>
 
-<div id="storyPlayer">
-  <button id="storyCloseButton">×</button>
-  <div id="storyLayerA" class="story-layer"></div>
-  <div id="storyLayerB" class="story-layer"></div>
-  <button id="storyNextButton">Get moving</button>
+<div id="storyContainer">
+  <div id="storyMediaArea">
+    <button id="storyCloseButton">×</button>
+    <div id="storyLayerA" class="story-layer"></div>
+    <div id="storyLayerB" class="story-layer"></div>
+    <button id="storyNextButton">Get moving</button>
+  </div>
+  <div id="foundItemsPanel">
+    <h4>Found Items</h4>
+    <div id="foundItemsList"><div class="hint" style="opacity:.4;color:#fff;font-size:11px;">Noch nichts gefunden.</div></div>
+  </div>
 </div>
 
 <div id="lightbox">
@@ -155,11 +184,13 @@ const lightbox = document.getElementById("lightbox");
 const lightboxContent = document.getElementById("lightboxContent");
 const landingIntro = document.getElementById("landingIntro");
 const statsOverlay = document.getElementById("statsOverlay");
-const storyPlayer = document.getElementById("storyPlayer");
+const liveStatsEl = document.getElementById("liveStats");
+const storyContainer = document.getElementById("storyContainer");
 const storyLayerA = document.getElementById("storyLayerA");
 const storyLayerB = document.getElementById("storyLayerB");
 const storyNextButton = document.getElementById("storyNextButton");
 const storyCloseButton = document.getElementById("storyCloseButton");
+const foundItemsList = document.getElementById("foundItemsList");
 
 map.on("load", () => { map.setProjection("globe"); });
 
@@ -437,7 +468,7 @@ map.on("move", () => {
   drawLines();
 });
 
-/* ===== LANDING: Intro + Spider-Web-Vorschauen ===== */
+/* ===== LANDING ===== */
 
 async function loadIntro() {
   try {
@@ -502,6 +533,48 @@ function renderLandingPanels() {
   drawLines();
 }
 
+/* ===== DISTANCE ALONG PATH ===== */
+
+function haversine(a, b) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b[1] - a[1]);
+  const dLng = toRad(b[0] - a[0]);
+  const lat1 = toRad(a[1]), lat2 = toRad(b[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function distanceAlongPath(coordinates, target) {
+  let nearestIdx = 0, nearestDist = Infinity;
+  coordinates.forEach((c, i) => {
+    const d = haversine(c, target);
+    if (d < nearestDist) { nearestDist = d; nearestIdx = i; }
+  });
+  let total = 0;
+  for (let i = 1; i <= nearestIdx; i++) total += haversine(coordinates[i - 1], coordinates[i]);
+  return total;
+}
+
+function findStepTarget(steps, index) {
+  const step = steps[index];
+  if (step.category && step.category !== "weg" && step.lng && step.lat) return [step.lng, step.lat];
+  for (let j = index + 1; j < steps.length; j++) {
+    const s = steps[j];
+    if (s.category && s.category !== "weg" && s.lng && s.lat) return [s.lng, s.lat];
+  }
+  return null;
+}
+
+function updateLiveStats(route, target) {
+  if (!target) return;
+  const coords = parseCoordinates(route.coordinates);
+  const meters = distanceAlongPath(coords, target);
+  const km = (meters / 1000).toFixed(2);
+  liveStatsEl.innerText = "Zurückgelegt: " + km + " km";
+  liveStatsEl.classList.add("active");
+}
+
 /* ===== FOLLOW THIS TRACE ===== */
 
 function typewriterInto(el, text, speed) {
@@ -536,19 +609,27 @@ function preloadStepsMedia(steps) {
 function buildStepElement(step) {
   const wrap = document.createElement("div");
   wrap.className = "story-layer-content";
+  let video = null;
 
   if (step.media_type === "video") {
-    wrap.innerHTML = '<video src="' + step.media_url + '" autoplay playsinline></video>';
-    } else if (step.media_type === "model") {
+    video = document.createElement("video");
+    video.src = step.media_url;
+    video.playsInline = true;
+    wrap.appendChild(video);
+  } else if (step.media_type === "model") {
     wrap.innerHTML =
-      '<model-viewer src="' + step.media_url + '" camera-controls auto-rotate exposure="1"></model-viewer>' +
+      '<model-viewer src="' + step.media_url + '" camera-controls auto-rotate exposure="1" zoom-sensitivity="2.5"></model-viewer>' +
       '<div class="model-loading">Modell wird geladen ...</div>';
     const modelViewerEl = wrap.querySelector("model-viewer");
     const loadingLabel = wrap.querySelector(".model-loading");
     modelViewerEl.addEventListener("load", () => { loadingLabel.style.display = "none"; });
     modelViewerEl.addEventListener("error", () => { loadingLabel.innerText = "Modell konnte nicht geladen werden."; });
   } else {
-    wrap.innerHTML = step.media_url ? '<img src="' + step.media_url + '">' : "";
+    if (step.media_url) {
+      const img = document.createElement("img");
+      img.src = step.media_url;
+      wrap.appendChild(img);
+    }
   }
 
   if (step.text_overlay) {
@@ -565,7 +646,7 @@ function buildStepElement(step) {
     wrap.appendChild(audio);
   }
 
-  return wrap;
+  return { wrap, video };
 }
 
 function crossfade(oldLayer, newLayer, durationMs) {
@@ -591,16 +672,43 @@ function crossfade(oldLayer, newLayer, durationMs) {
   requestAnimationFrame(step);
 }
 
+const loadedItemSteps = new Set();
+
+async function loadStepItems(step) {
+  if (loadedItemSteps.has(step.id)) return;
+  loadedItemSteps.add(step.id);
+  try {
+    const items = await fetch("/api/steps/" + step.id + "/items").then(r => r.json());
+    if (!items.length) return;
+    const emptyHint = foundItemsList.querySelector(".hint");
+    if (emptyHint) emptyHint.remove();
+    items.forEach(item => {
+      const el = document.createElement("div");
+      el.className = "found-item";
+      el.innerHTML =
+        (item.image_url ? '<img src="' + item.image_url + '">' : '') +
+        '<p>' + escapeHtml(item.note || "") + '</p>';
+      foundItemsList.appendChild(el);
+    });
+  } catch (e) { console.error(e); }
+}
+
 function playStory(steps, index, route) {
   if (index >= steps.length) {
-    storyPlayer.classList.remove("active");
+    storyContainer.classList.remove("active");
+    document.body.classList.remove("story-mode");
+    map.resize();
     storyLayerA.innerHTML = ""; storyLayerB.innerHTML = "";
     storyLayerA.style.opacity = "0"; storyLayerB.style.opacity = "0";
+    liveStatsEl.classList.remove("active");
     openTracePanels(route);
     return;
   }
 
-  storyPlayer.classList.add("active");
+  storyContainer.classList.add("active");
+  document.body.classList.add("story-mode");
+  map.resize();
+
   const step = steps[index];
   const prevStep = index > 0 ? steps[index - 1] : null;
   const isLast = index === steps.length - 1;
@@ -609,41 +717,71 @@ function playStory(steps, index, route) {
   const activeLayer = (index % 2 === 0) ? storyLayerB : storyLayerA;
 
   nextLayer.innerHTML = "";
-  nextLayer.appendChild(buildStepElement(step));
+  const built = buildStepElement(step);
+  nextLayer.appendChild(built.wrap);
   nextLayer.style.opacity = "0";
 
-  const useFade = index === 0 || (prevStep && prevStep.transition === "fade");
+  const target = findStepTarget(steps, index);
+  let durationMs = 4000;
+  let started = false;
 
-  if (index === 0) {
-    void nextLayer.offsetWidth;
-    nextLayer.style.transition = "opacity 1s ease";
-    requestAnimationFrame(() => { nextLayer.style.opacity = "1"; });
-  } else if (useFade) {
-    nextLayer.style.transition = "none";
-    crossfade(activeLayer, nextLayer, 2000);
-  } else {
-    nextLayer.style.transition = "none";
-    activeLayer.style.opacity = "0";
-    activeLayer.innerHTML = "";
-    nextLayer.style.opacity = "1";
+  function startPlayback() {
+    if (started) return;
+    started = true;
+
+    const useFade = index === 0 || (prevStep && prevStep.transition === "fade");
+
+    if (index === 0) {
+      void nextLayer.offsetWidth;
+      nextLayer.style.transition = "opacity 1s ease";
+      requestAnimationFrame(() => { nextLayer.style.opacity = "1"; });
+    } else if (useFade) {
+      nextLayer.style.transition = "none";
+      crossfade(activeLayer, nextLayer, 2000);
+    } else {
+      nextLayer.style.transition = "none";
+      activeLayer.style.opacity = "0";
+      activeLayer.innerHTML = "";
+      nextLayer.style.opacity = "1";
+    }
+
+    if (target) {
+      map.flyTo({ center: target, zoom: 16, duration: durationMs, essential: true });
+      updateLiveStats(route, target);
+    }
+
+    if (built.video) {
+      const playAttempt = built.video.play();
+      if (playAttempt && playAttempt.catch) {
+        playAttempt.catch(() => { built.video.muted = true; built.video.play(); });
+      }
+      storyNextButton.style.display = "none";
+      built.video.addEventListener("ended", () => playStory(steps, index + 1, route), { once: true });
+    } else {
+      storyNextButton.style.display = "block";
+      storyNextButton.innerText = index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter");
+      storyNextButton.onclick = () => playStory(steps, index + 1, route);
+    }
+
+    loadStepItems(step);
   }
 
-  if (step.media_type === "video") {
-    storyNextButton.style.display = "none";
-    const video = nextLayer.querySelector("video");
-    if (video) {
-      video.addEventListener("ended", () => playStory(steps, index + 1, route), { once: true });
-    }
+  if (built.video) {
+    built.video.addEventListener("loadedmetadata", () => {
+      durationMs = Math.max(1500, Math.min(30000, built.video.duration * 1000));
+      startPlayback();
+    }, { once: true });
+    setTimeout(startPlayback, 3000);
   } else {
-    storyNextButton.style.display = "block";
-    storyNextButton.innerText = index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter");
-    storyNextButton.onclick = () => playStory(steps, index + 1, route);
+    startPlayback();
   }
 }
 
 async function startFollowTrace(route) {
   closeAllPanels();
   landingIntro.style.display = "none";
+  loadedItemSteps.clear();
+  foundItemsList.innerHTML = '<div class="hint" style="opacity:.4;color:#fff;font-size:11px;">Noch nichts gefunden.</div>';
 
   const steps = route.steps || [];
   preloadStepsMedia(steps);
@@ -677,9 +815,12 @@ async function startFollowTrace(route) {
 }
 
 storyCloseButton.addEventListener("click", () => {
-  storyPlayer.classList.remove("active");
+  storyContainer.classList.remove("active");
+  document.body.classList.remove("story-mode");
+  map.resize();
   storyLayerA.innerHTML = ""; storyLayerB.innerHTML = "";
   storyLayerA.style.opacity = "0"; storyLayerB.style.opacity = "0";
+  liveStatsEl.classList.remove("active");
   statsOverlay.classList.remove("active");
 });
 
