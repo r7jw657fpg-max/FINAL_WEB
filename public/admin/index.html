@@ -783,7 +783,41 @@ function renderRoutes() {
 /* ===== GPX IMPORT ===== */
 
 document.getElementById("gpxButton").addEventListener("click", () => document.getElementById("gpxInput").click());
-
+function simplifyGpxPoints(points, toleranceMeters) {
+  function haversineSimple(a, b) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(b[1] - a[1]);
+    const dLng = toRad(b[0] - a[0]);
+    const lat1 = toRad(a[1]), lat2 = toRad(b[1]);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function perpendicularDistance(pt, lineStart, lineEnd) {
+    const [x, y] = pt, [x1, y1] = lineStart, [x2, y2] = lineEnd;
+    const dx = x2 - x1, dy = y2 - y1;
+    if (dx === 0 && dy === 0) return haversineSimple(pt, lineStart);
+    const t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+    const clampedT = Math.max(0, Math.min(1, t));
+    return haversineSimple(pt, [x1 + clampedT * dx, y1 + clampedT * dy]);
+  }
+  function simplifySection(section, epsilon) {
+    if (section.length < 3) return section;
+    let maxDist = 0, index = 0;
+    const start = section[0], end = section[section.length - 1];
+    for (let i = 1; i < section.length - 1; i++) {
+      const dist = perpendicularDistance(section[i], start, end);
+      if (dist > maxDist) { maxDist = dist; index = i; }
+    }
+    if (maxDist > epsilon) {
+      const left = simplifySection(section.slice(0, index + 1), epsilon);
+      const right = simplifySection(section.slice(index), epsilon);
+      return left.slice(0, -1).concat(right);
+    }
+    return [start, end];
+  }
+  return simplifySection(points, toleranceMeters);
+}
 document.getElementById("gpxInput").addEventListener("change", (event) => {
   const file = event.target.files[0];
   if (!file) return;
@@ -801,9 +835,10 @@ document.getElementById("gpxInput").addEventListener("change", (event) => {
         if (!isNaN(lat) && !isNaN(lon)) coordinates.push([lon, lat]);
       }
 
-      if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
+           if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
 
-      pendingGpx = { coordinates, filename: file.name.replace(/\.gpx$/i, "") };
+      const cleanedCoordinates = simplifyGpxPoints(coordinates, 8);
+      pendingGpx = { coordinates: cleanedCoordinates, filename: file.name.replace(/\.gpx$/i, "") };
       document.getElementById("routeName").value = pendingGpx.filename;
       document.getElementById("dialog").classList.add("active");
     } catch (error) {
