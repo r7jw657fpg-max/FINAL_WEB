@@ -745,8 +745,8 @@ function playStory(steps, index, route) {
       nextLayer.style.opacity = "1";
     }
 
-    if (target) {
-      map.flyTo({ center: target, zoom: 16, duration: durationMs, essential: true });
+       if (target) {
+      map.flyTo({ center: target, zoom: 18.5, duration: durationMs, essential: true });
       updateLiveStats(route, target);
     }
 
