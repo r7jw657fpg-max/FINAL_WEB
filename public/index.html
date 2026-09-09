@@ -581,9 +581,19 @@ function playStory(steps, index, route) {
   const nextLayer = (index % 2 === 0) ? storyLayerA : storyLayerB;
   const activeLayer = (index % 2 === 0) ? storyLayerB : storyLayerA;
 
-  nextLayer.innerHTML = "";
+ nextLayer.innerHTML = "";
   nextLayer.appendChild(buildStepElement(step));
   nextLayer.style.opacity = "0";
+
+  if (step.media_type === "video") {
+    const video = nextLayer.querySelector("video");
+    if (video) {
+      const playAttempt = video.play();
+      if (playAttempt && playAttempt.catch) {
+        playAttempt.catch(() => { video.muted = true; video.play(); });
+      }
+    }
+  }
 
   const useFade = index === 0 || (prevStep && prevStep.transition === "fade");
 
