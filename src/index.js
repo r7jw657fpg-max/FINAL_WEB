@@ -1,3 +1,4 @@
+import { AwsClient } from "aws4fetch";
 function isAuthenticated(request, env) {
   const auth = request.headers.get("Authorization");
   if (!auth) return false;
@@ -35,7 +36,29 @@ export default {
       if (!isAuthenticated(request, env)) return requireAuth();
       return env.ASSETS.fetch(request);
     }
+    if (url.pathname === "/api/upload-url") {
+      if (!isAuthenticated(request, env)) return requireAuth();
+      if (method !== "POST") return new Response("Method not allowed", { status: 405 });
 
+      const body = await request.json();
+      const key = Date.now() + "-" + Math.random().toString(36).substring(2, 8) + "-" + (body.filename || "file");
+
+      const client = new AwsClient({
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+        service: "s3",
+        region: "auto"
+      });
+
+      const r2Url = "https://" + env.R2_ACCOUNT_ID + ".r2.cloudflarestorage.com/" + env.R2_BUCKET_NAME + "/" + key;
+      const signed = await client.sign(r2Url, {
+        method: "PUT",
+        headers: body.contentType ? { "Content-Type": body.contentType } : {},
+        aws: { signQuery: true }
+      });
+
+      return json({ uploadUrl: signed.url, key: key, publicUrl: "/files/" + key });
+    }
     if (url.pathname === "/api/upload") {
       if (!isAuthenticated(request, env)) return requireAuth();
       if (method !== "POST") return new Response("Method not allowed", { status: 405 });
