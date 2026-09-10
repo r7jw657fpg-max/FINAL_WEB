@@ -239,7 +239,10 @@ async function uploadFile(file) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename: file.name, contentType: file.type })
   });
-  if (!urlResponse.ok) throw new Error("Konnte Upload-URL nicht anfordern: " + urlResponse.status);
+   if (!urlResponse.ok) {
+    const errText = await urlResponse.text().catch(() => "");
+    throw new Error("Konnte Upload-URL nicht anfordern: " + urlResponse.status + " " + errText);
+  }
   const { uploadUrl, publicUrl } = await urlResponse.json();
 
   const putResponse = await fetch(uploadUrl, {
