@@ -297,6 +297,18 @@ function focusRoute(route) {
   coordinates.forEach(c => bounds.extend(c));
   map.fitBounds(bounds, { padding: 100, duration: 900 });
 }
+  
+async function saveRoute(route) {
+  await api("/api/routes/" + route.id, {
+    method: "PUT",
+    body: JSON.stringify({
+      name: route.name, color: route.color, width: route.width, coordinates: route.coordinates,
+      visible: route.visible !== 0, duration_minutes: route.duration_minutes,
+      distance_km: route.distance_km, notes: route.notes, video_url: route.video_url
+    })
+  });
+  status("Trace gespeichert.");
+}
 
 /* ===== FOUND ITEMS (pro Schritt) ===== */
 
