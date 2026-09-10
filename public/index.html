@@ -662,7 +662,13 @@ function typewriterInto(el, text, speed) {
 }
 
 function preloadStepsMedia(steps) {
-  steps.forEach(step => {
+  const ordered = steps.length > 1 ? [steps[0], ...steps.slice(1)] : steps;
+  ordered.forEach((step, i) => {
+    setTimeout(() => preloadOneStep(step), i === 0 ? 0 : 50 * i);
+  });
+}
+
+function preloadOneStep(step) {
     if (!step.media_url) return;
     if (step.media_type === "image") {
       const img = new Image();
