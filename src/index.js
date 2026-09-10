@@ -52,7 +52,7 @@ export default {
       return json({ url: "/files/" + key });
     }
 
-    if (url.pathname.startsWith("/files/")) {
+     if (url.pathname.startsWith("/files/")) {
       const key = decodeURIComponent(url.pathname.replace("/files/", ""));
       const object = await env.BUCKET.get(key);
       if (!object) return new Response("Nicht gefunden", { status: 404 });
@@ -60,6 +60,7 @@ export default {
       const headers = new Headers();
       object.writeHttpMetadata(headers);
       headers.set("etag", object.httpEtag);
+      headers.set("Cache-Control", "public, max-age=31536000, immutable");
 
       return new Response(object.body, { headers });
     }
