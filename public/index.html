@@ -669,19 +669,18 @@ function preloadStepsMedia(steps) {
 }
 
 function preloadOneStep(step) {
-    if (!step.media_url) return;
-    if (step.media_type === "image") {
-      const img = new Image();
-      img.src = step.media_url;
-    } else if (step.media_type === "video") {
-      const video = document.createElement("video");
-      video.preload = "auto";
-      video.src = step.media_url;
-      video.load();
-    } else if (step.media_type === "model") {
-      fetch(step.media_url).catch(() => {});
-    }
-  });
+  if (!step.media_url) return;
+  if (step.media_type === "image") {
+    const img = new Image();
+    img.src = step.media_url;
+  } else if (step.media_type === "video") {
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.src = step.media_url;
+    video.load();
+  } else if (step.media_type === "model") {
+    fetch(step.media_url).catch(() => {});
+  }
 }
 
 function buildStepElement(step) {
