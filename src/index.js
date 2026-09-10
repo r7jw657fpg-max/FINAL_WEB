@@ -95,17 +95,18 @@ export default {
         const { results } = await env.DB.prepare("SELECT * FROM points").all();
         return json(results);
       }
-      if (method === "POST") {
+           if (method === "POST") {
         if (!isAuthenticated(request, env)) return requireAuth();
         const body = await request.json();
         const pointId = newId("point");
-               await env.DB.prepare(
-          "INSERT INTO trace_steps (id, route_id, position, media_type, media_url, text_overlay, audio_url, transition, category, lng, lat, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        await env.DB.prepare(
+          "INSERT INTO points (id, title, lng, lat, type, route_id, visible, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         ).bind(
-          stepId, routeId, nextPos, body.media_type || "image", body.media_url || "",
-          body.text_overlay || "", body.audio_url || "", body.transition || "cut",
-          body.category || "weg", body.lng || null, body.lat || null,
-          new Date().toISOString()
+          pointId, body.title || "Neues Objekt",
+          body.lng, body.lat,
+          body.type || "lost_and_found",
+          body.route_id || null,
+          body.visible === false ? 0 : 1, new Date().toISOString()
         ).run();
         return json({ id: pointId }, 201);
       }
