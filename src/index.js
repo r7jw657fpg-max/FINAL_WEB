@@ -44,8 +44,13 @@ export default {
         const body = await request.json();
         const key = Date.now() + "-" + Math.random().toString(36).substring(2, 8) + "-" + (body.filename || "file");
 
-        if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_ACCOUNT_ID || !env.R2_BUCKET_NAME) {
-          return json({ error: "Fehlende R2-Umgebungsvariable(n)" }, 500);
+               const missing = [];
+        if (!env.R2_ACCESS_KEY_ID) missing.push("R2_ACCESS_KEY_ID");
+        if (!env.R2_SECRET_ACCESS_KEY) missing.push("R2_SECRET_ACCESS_KEY");
+        if (!env.R2_ACCOUNT_ID) missing.push("R2_ACCOUNT_ID");
+        if (!env.R2_BUCKET_NAME) missing.push("R2_BUCKET_NAME");
+        if (missing.length > 0) {
+          return json({ error: "Fehlende R2-Umgebungsvariable(n): " + missing.join(", ") }, 500);
         }
 
         const client = new AwsClient({
