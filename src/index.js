@@ -36,28 +36,36 @@ export default {
       if (!isAuthenticated(request, env)) return requireAuth();
       return env.ASSETS.fetch(request);
     }
-    if (url.pathname === "/api/upload-url") {
+       if (url.pathname === "/api/upload-url") {
       if (!isAuthenticated(request, env)) return requireAuth();
       if (method !== "POST") return new Response("Method not allowed", { status: 405 });
 
-      const body = await request.json();
-      const key = Date.now() + "-" + Math.random().toString(36).substring(2, 8) + "-" + (body.filename || "file");
+      try {
+        const body = await request.json();
+        const key = Date.now() + "-" + Math.random().toString(36).substring(2, 8) + "-" + (body.filename || "file");
 
-      const client = new AwsClient({
-        accessKeyId: env.R2_ACCESS_KEY_ID,
-        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-        service: "s3",
-        region: "auto"
-      });
+        if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_ACCOUNT_ID || !env.R2_BUCKET_NAME) {
+          return json({ error: "Fehlende R2-Umgebungsvariable(n)" }, 500);
+        }
 
-      const r2Url = "https://" + env.R2_ACCOUNT_ID + ".r2.cloudflarestorage.com/" + env.R2_BUCKET_NAME + "/" + key;
-      const signed = await client.sign(r2Url, {
-        method: "PUT",
-        headers: body.contentType ? { "Content-Type": body.contentType } : {},
-        aws: { signQuery: true }
-      });
+        const client = new AwsClient({
+          accessKeyId: env.R2_ACCESS_KEY_ID,
+          secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+          service: "s3",
+          region: "auto"
+        });
 
-      return json({ uploadUrl: signed.url, key: key, publicUrl: "/files/" + key });
+        const r2Url = "https://" + env.R2_ACCOUNT_ID + ".r2.cloudflarestorage.com/" + env.R2_BUCKET_NAME + "/" + key;
+        const signed = await client.sign(r2Url, {
+          method: "PUT",
+          headers: body.contentType ? { "Content-Type": body.contentType } : {},
+          aws: { signQuery: true }
+        });
+
+        return json({ uploadUrl: signed.url, key: key, publicUrl: "/files/" + key });
+      } catch (err) {
+        return json({ error: String((err && err.message) || err) }, 500);
+      }
     }
     if (url.pathname === "/api/upload") {
       if (!isAuthenticated(request, env)) return requireAuth();
