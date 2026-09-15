@@ -661,26 +661,35 @@ function typewriterInto(el, text, speed) {
   });
 }
 
-function preloadStepsMedia(steps) {
-  const ordered = steps.length > 1 ? [steps[0], ...steps.slice(1)] : steps;
-  ordered.forEach((step, i) => {
-    setTimeout(() => preloadOneStep(step), i === 0 ? 0 : 50 * i);
-  });
+let preloadedBlobs = {};
+
+function revokePreloadedBlobs() {
+  Object.values(preloadedBlobs).forEach(url => URL.revokeObjectURL(url));
+  preloadedBlobs = {};
 }
 
-function preloadOneStep(step) {
-  if (!step.media_url) return;
-  if (step.media_type === "image") {
-    const img = new Image();
-    img.src = step.media_url;
-  } else if (step.media_type === "video") {
-    const video = document.createElement("video");
-    video.preload = "auto";
-    video.src = step.media_url;
-    video.load();
-  } else if (step.media_type === "model") {
-    fetch(step.media_url).catch(() => {});
+async function preloadUrl(key, url) {
+  if (!url) return;
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    preloadedBlobs[key] = URL.createObjectURL(blob);
+  } catch (e) {
+    console.error("Preload fehlgeschlagen:", url, e);
   }
+}
+
+async function preloadOneStep(step) {
+  await Promise.all([
+    preloadUrl(step.id + ":media", step.media_url),
+    preloadUrl(step.id + ":audio", step.audio_url)
+  ]);
+}
+
+async function preloadStepsMedia(steps) {
+  if (steps.length === 0) return;
+  await preloadOneStep(steps[0]);
+  steps.slice(1).forEach(step => preloadOneStep(step));
 }
 
 function buildStepElement(step) {
@@ -688,14 +697,17 @@ function buildStepElement(step) {
   wrap.className = "story-layer-content";
   let video = null;
 
+  const mediaSrc = preloadedBlobs[step.id + ":media"] || step.media_url;
+  const audioSrc = preloadedBlobs[step.id + ":audio"] || step.audio_url;
+
   if (step.media_type === "video") {
     video = document.createElement("video");
-    video.src = step.media_url;
+    video.src = mediaSrc;
     video.playsInline = true;
     wrap.appendChild(video);
   } else if (step.media_type === "model") {
     wrap.innerHTML =
-      '<model-viewer src="' + step.media_url + '" camera-controls auto-rotate exposure="1" zoom-sensitivity="2.5"></model-viewer>' +
+      '<model-viewer src="' + mediaSrc + '" camera-controls auto-rotate exposure="1" zoom-sensitivity="2.5"></model-viewer>' +
       '<div class="model-loading">Modell wird geladen ...</div>';
     const modelViewerEl = wrap.querySelector("model-viewer");
     const loadingLabel = wrap.querySelector(".model-loading");
@@ -704,7 +716,7 @@ function buildStepElement(step) {
   } else {
     if (step.media_url) {
       const img = document.createElement("img");
-      img.src = step.media_url;
+      img.src = mediaSrc;
       wrap.appendChild(img);
     }
   }
@@ -718,7 +730,7 @@ function buildStepElement(step) {
 
   if (step.audio_url) {
     const audio = document.createElement("audio");
-    audio.src = step.audio_url;
+    audio.src = audioSrc;
     audio.autoplay = true;
     wrap.appendChild(audio);
   }
@@ -896,6 +908,7 @@ storyCloseButton.addEventListener("click", () => {
   storyLayerA.style.opacity = "0"; storyLayerB.style.opacity = "0";
   liveStatsEl.classList.remove("active");
   statsOverlay.classList.remove("active");
+  revokePreloadedBlobs();
 });
 
 async function loadData() {
