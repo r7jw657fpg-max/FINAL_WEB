@@ -54,8 +54,9 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 
 #landingIntro {
   position: absolute; top: 60px; left: 20px; width: 340px; max-height: 60vh; overflow-y: auto;
-  color: #fff; font-size: 15px; line-height: 1.75; background: rgba(12,12,12,.78);
-  padding: 24px; border-radius: 8px; z-index: 26; white-space: pre-wrap;
+  color: #fff; font-size: 15px; line-height: 1.75; background: transparent;
+  padding: 24px; z-index: 26; white-space: pre-wrap; pointer-events: none;
+  text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 20px rgba(0,0,0,.6);
 }
 
 #statsOverlay {
@@ -117,7 +118,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 #foundItemsList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 #foundItemsList .hint { grid-column: 1 / -1; }
 .found-item { display: flex; flex-direction: column; }
-.found-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; background: #222; }
+.found-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; background: #222; cursor: pointer; }
 .found-item p { margin: 6px 0 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
 </style>
 </head>
@@ -493,14 +494,16 @@ function renderLandingPanels() {
   const total = routes.length;
   if (total === 0) return;
 
-  const radius = Math.max(260, (total * 300) / (Math.PI * 2));
+  const radius = Math.max(220, (total * 260) / (Math.PI * 2));
   const currentZoom = map.getZoom();
+  const margin = 40;
 
   panels = routes.map((route, index) => {
     const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
     const anchorLngLat = routeCentroid(route);
     const anchorScreen = map.project(anchorLngLat);
     const routeColor = route.color || "#ff453a";
+    const panelHeight = route.video_url ? 250 : 150;
 
     const el = document.createElement("div");
     el.className = "spider-panel";
@@ -508,21 +511,22 @@ function renderLandingPanels() {
     inner.className = "spider-panel-inner";
     el.appendChild(inner);
 
-        const thumbHtml = route.video_url
+    const thumbHtml = route.video_url
       ? '<div class="landing-thumb">' + (isVideoUrl(route.video_url)
           ? '<video src="' + route.video_url + '" muted playsinline preload="metadata"></video>'
           : '<img src="' + route.video_url + '">') + '</div>'
       : '';
     inner.innerHTML =
       thumbHtml +
-      '<div class="panel-kicker">TRACE</div>' +
-      '<h3>' + escapeHtml(route.name) + '</h3>' +
-      '<button class="follow-landing-btn" style="width:100%;margin-top:10px;padding:9px;border:0;border-radius:4px;background:#ffd400;color:#000;font-size:10px;cursor:pointer;">Follow this trace</button>';
+      '<h3 style="margin-top:' + (route.video_url ? '4px' : '0') + ';">' + escapeHtml(route.name) + '</h3>' +
+      '<button class="follow-landing-btn" style="width:100%;margin-top:14px;padding:7px 10px;border:0;border-radius:4px;background:#ffd400;color:#000;font-size:9px;cursor:pointer;">Follow this trace</button>';
 
     spiderLayer.appendChild(el);
 
-    const x = anchorScreen.x + Math.cos(angle) * radius;
-    const y = anchorScreen.y + Math.sin(angle) * radius;
+    let x = anchorScreen.x + Math.cos(angle) * radius;
+    let y = anchorScreen.y + Math.sin(angle) * radius;
+    x = Math.max(margin + 115, Math.min(window.innerWidth - margin - 115, x));
+    y = Math.max(margin + panelHeight / 2, Math.min(window.innerHeight - margin - panelHeight / 2, y));
     el.style.left = x + "px"; el.style.top = y + "px";
 
     const panel = {
@@ -530,7 +534,7 @@ function renderLandingPanels() {
       baseZoom: currentZoom,
       baseOffsetX: x - anchorScreen.x,
       baseOffsetY: y - anchorScreen.y,
-      baseWidth: 230, baseHeight: route.video_url ? 250 : 150
+      baseWidth: 230, baseHeight: panelHeight
     };
 
     inner.querySelector(".follow-landing-btn").addEventListener("click", (event) => {
@@ -771,13 +775,17 @@ async function loadStepItems(step) {
     if (!items.length) return;
     const emptyHint = foundItemsList.querySelector(".hint");
     if (emptyHint) emptyHint.remove();
-    items.forEach(item => {
+        items.forEach(item => {
       const el = document.createElement("div");
       el.className = "found-item";
       el.innerHTML =
-        (item.image_url ? '<img src="' + item.image_url + '">' : '') +
+        (item.image_url ? '<img src="' + item.image_url + '" data-full="' + item.image_url + '">' : '') +
         '<p>' + escapeHtml(item.note || "") + '</p>';
       foundItemsList.appendChild(el);
+      const imgEl = el.querySelector("img");
+      if (imgEl) {
+        imgEl.addEventListener("click", () => openLightbox(imgEl.dataset.full));
+      }
     });
   } catch (e) { console.error(e); }
 }
