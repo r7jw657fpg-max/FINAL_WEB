@@ -1,6 +1,7 @@
 {
   "name": "final-web",
   "compatibility_date": "2026-08-01",
+  "keep_vars": true,
   "main": "src/index.js",
   "assets": {
     "directory": "./public",
