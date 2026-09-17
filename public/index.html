@@ -121,9 +121,59 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .found-item { display: flex; flex-direction: column; }
 .found-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; background: #222; cursor: pointer; }
 .found-item p { margin: 6px 0 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
+
+/* ===== Vintage-Video-Look: Korn, Scanlines, Vignette, Flackern ===== */
+#filmOverlay { position: fixed; inset: 0; z-index: 999; pointer-events: none; }
+
+.film-grain {
+  position: absolute; inset: -50%; width: 200%; height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay; opacity: .35;
+  animation: grain-shift .4s steps(3) infinite;
+}
+@keyframes grain-shift {
+  0%   { transform: translate(0,0); }
+  33%  { transform: translate(-2%,1.5%); }
+  66%  { transform: translate(1.5%,-2%); }
+  100% { transform: translate(0,0); }
+}
+
+.film-scanlines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0px, rgba(0,0,0,.22) 1px, transparent 1px, transparent 3px);
+  mix-blend-mode: multiply; opacity: .3;
+}
+
+.film-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%);
+}
+
+.film-flicker {
+  position: absolute; inset: 0; background: #fff; opacity: 0;
+  animation: flicker 6.5s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%, 92%, 100% { opacity: 0; }
+  93% { opacity: .05; }
+  94% { opacity: 0; }
+  96% { opacity: .03; }
+  97% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film-grain, .film-flicker { animation: none; }
+}
 </style>
 </head>
 <body>
+
+<div id="filmOverlay">
+  <div class="film-grain"></div>
+  <div class="film-scanlines"></div>
+  <div class="film-vignette"></div>
+  <div class="film-flicker"></div>
+</div>
 
 <div class="marquee-bar marquee-top">
   <div class="marquee-track">
