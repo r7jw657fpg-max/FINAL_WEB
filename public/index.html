@@ -12,7 +12,7 @@
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 #map { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; }
 
-.marker-badge { width: 30px; height: 30px; border-radius: 50%; background: #0c0c0c; border: 2px solid #ffd400; display: flex; align-items: center; justify-content: center; }
+.marker-badge { width: 30px; height: 30px; border-radius: 50%; background: #0c0c0c; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; }
 
 .marquee-bar { position: fixed; left: 0; right: 0; height: 40px; overflow: hidden; background: #000; z-index: 30; }
 .marquee-top { top: 0; border-bottom: 1px solid rgba(255,255,255,.15); }
@@ -60,7 +60,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   border: 1px solid rgba(255,255,255,.14);
 }
 .landing-panel-media img, .landing-panel-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.landing-panel-media-empty { background: var(--panel-color, #ff453a); opacity: .3; }
+.landing-panel-media-empty { background: #888; opacity: .3; }
 .landing-panel-ring { position: absolute; inset: 0; pointer-events: none; }
 .landing-panel-ring text {
   fill: #fff; font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase;
@@ -116,8 +116,13 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   transition: opacity .6s ease, transform .6s ease, visibility 0s linear 0s;
 }
 
+/* Höhe richtet sich nach dem Seitenverhältnis des aktuellen Mediums
+   (--media-aspect, per JS gesetzt), statt immer den vollen Platz zu
+   füllen und das Bild klein hineinzuletterboxen. */
 #storyMediaPanel {
-  flex: 1 1 auto; position: relative; background: #0c0c0c; border-radius: 10px;
+  flex: 0 0 auto; width: 100%; max-height: 70%;
+  aspect-ratio: var(--media-aspect, 16 / 9);
+  position: relative; background: #0c0c0c; border-radius: 10px;
   overflow: hidden; pointer-events: all; box-shadow: 0 20px 60px rgba(0,0,0,.55);
 }
 .story-layer { position: absolute; inset: 0; display: flex; align-items: stretch; justify-content: center; opacity: 0; }
@@ -145,14 +150,14 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 #storyCloseButton:hover { opacity: 1; }
 
 #foundItemsPanel {
-  flex: 0 0 30%; background: #0c0c0c; border-radius: 10px; overflow-y: auto;
+  flex: 1 1 auto; min-height: 0; background: #0c0c0c; border-radius: 10px; overflow-y: auto;
   padding: 18px; pointer-events: all; box-shadow: 0 20px 60px rgba(0,0,0,.55);
 }
 #foundItemsPanel h4 { margin: 0 0 12px; font-size: 11px; color: #fff; text-transform: uppercase; letter-spacing: .08em; opacity: .7; }
 #foundItemsList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 #foundItemsList .hint { grid-column: 1 / -1; }
 .found-item { display: flex; flex-direction: column; }
-.found-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; background: #222; cursor: pointer; }
+.found-item img { width: 100%; height: auto; display: block; border-radius: 6px; background: #222; cursor: pointer; }
 .found-item p { margin: 6px 0 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
 
 /* ===== Vintage-Video-Look: Korn, Scanlines, Vignette, Flackern =====
@@ -308,6 +313,7 @@ const landingIntro = document.getElementById("landingIntro");
 const statsOverlay = document.getElementById("statsOverlay");
 const liveStatsEl = document.getElementById("liveStats");
 const storyPanelsWrap = document.getElementById("storyPanelsWrap");
+const storyMediaPanel = document.getElementById("storyMediaPanel");
 const storyLayerA = document.getElementById("storyLayerA");
 const storyLayerB = document.getElementById("storyLayerB");
 const storyNextButton = document.getElementById("storyNextButton");
@@ -351,7 +357,7 @@ function drawRoute(route) {
   map.addLayer({
     id, type: "line", source: id,
     layout: { "line-cap": "round", "line-join": "round", visibility: route.visible === 0 ? "none" : "visible" },
-    paint: { "line-color": route.color || "#ff453a", "line-width": Number(route.width || 5), "line-opacity": .9 }
+    paint: { "line-color": "#ffffff", "line-width": Number(route.width || 5), "line-opacity": .9 }
   });
   map.on("click", id, () => openTracePanels(route));
   map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -446,7 +452,7 @@ async function openTracePanels(route) {
   if (!bounds.isEmpty()) { map.fitBounds(bounds, { padding: 160, duration: zoomDuration }); }
 
   const items = [{ type: "statistics" }, ...relatedPoints.map(p => ({ type: "point", point: p }))];
-  const routeColor = route.color || "#ff453a";
+  const routeColor = "#ffffff";
   const centroidLngLat = routeCentroid(route);
   const centroidScreen = map.project(centroidLngLat);
 
@@ -593,7 +599,6 @@ const LANDING_PANEL_SIZE = 280;
 function buildLandingPanel(route) {
   const el = document.createElement("div");
   el.className = "landing-panel";
-  el.style.setProperty("--panel-color", route.color || "#ff453a");
 
   const media = document.createElement("div");
   media.className = "landing-panel-media";
@@ -620,7 +625,7 @@ function buildLandingPanel(route) {
   ringSvg.setAttribute("viewBox", "0 0 280 280");
   ringSvg.innerHTML =
     '<defs><path id="' + ringId + '" d="M 140,140 m -125,0 a 125,125 0 1,1 250,0 a 125,125 0 1,1 -250,0"/></defs>' +
-    '<text><textPath href="#' + ringId + '" startOffset="0%">CLICK TO FOLLOW THIS TRACE · CLICK TO FOLLOW THIS TRACE · </textPath></text>';
+    '<text><textPath href="#' + ringId + '" startOffset="0%">CLICK TO FOLLOW THIS TRACE · CLICK TO FOLLOW THIS TRACE · CLICK TO FOLLOW THIS TRACE · CLICK TO FOLLOW THIS TRACE · </textPath></text>';
   el.appendChild(ringSvg);
 
   el.addEventListener("click", () => startFollowTrace(route));
@@ -652,7 +657,7 @@ function renderLandingPanels() {
     el.style.left = x + "px"; el.style.top = y + "px";
 
     return {
-      el, anchorLngLat, routeColor: route.color || "#ff453a", x, y,
+      el, anchorLngLat, routeColor: "#ffffff", x, y,
       baseZoom: currentZoom,
       baseOffsetX: x - anchorScreen.x,
       baseOffsetY: y - anchorScreen.y,
@@ -721,23 +726,34 @@ function interpolateAlong(segment, t) {
 
 let footstepMarker = null;
 let lastCameraTarget = null;
+// Solange die initiale Kamera-Flugbewegung (flyTo) noch läuft, wartet die
+// Schritt-für-Schritt-Kamera hiermit, statt gleichzeitig am Zoom zu ziehen.
+let activeFlyTo = null;
 
-function animateFootstep(route, fromLngLat, toLngLat, durationMs) {
+async function animateFootstep(route, fromLngLat, toLngLat, durationMs) {
   if (!fromLngLat || !toLngLat) return;
   const coordinates = parseCoordinates(route.coordinates);
   const segment = pathSegmentBetween(coordinates, fromLngLat, toLngLat);
+  const fromMeters = distanceAlongPath(coordinates, fromLngLat);
+  const toMeters = distanceAlongPath(coordinates, toLngLat);
   if (!footstepMarker) {
     const el = document.createElement("div");
     el.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="#ffd400" stroke="#000" stroke-width="2"/></svg>';
     footstepMarker = new mapboxgl.Marker({ element: el }).setLngLat(fromLngLat).addTo(map);
   }
   footstepMarker.setLngLat(fromLngLat);
+
+  if (activeFlyTo) { try { await activeFlyTo; } catch (e) {} }
+
   const start = performance.now();
   function step(now) {
     const t = Math.max(0, Math.min(1, (now - start) / durationMs));
     const pos = interpolateAlong(segment, t);
     footstepMarker.setLngLat(pos);
     map.jumpTo({ center: pos, zoom: 20, padding: cameraPadding() });
+    const currentMeters = fromMeters + (toMeters - fromMeters) * t;
+    liveStatsEl.innerText = "Zurückgelegt: " + (currentMeters / 1000).toFixed(2) + " km";
+    liveStatsEl.classList.add("active");
     if (t < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
@@ -754,15 +770,6 @@ function findStepTarget(steps, index) {
     if (s.category && s.category !== "weg" && s.lng && s.lat) return [s.lng, s.lat];
   }
   return null;
-}
-
-function updateLiveStats(route, target) {
-  if (!target) return;
-  const coords = parseCoordinates(route.coordinates);
-  const meters = distanceAlongPath(coords, target);
-  const km = (meters / 1000).toFixed(2);
-  liveStatsEl.innerText = "Zurückgelegt: " + km + " km";
-  liveStatsEl.classList.add("active");
 }
 
 /* ===== FOLLOW THIS TRACE ===== */
@@ -810,6 +817,12 @@ async function preloadStepsMedia(steps) {
   steps.slice(1).forEach(step => preloadOneStep(step));
 }
 
+function setMediaAspect(width, height) {
+  if (width > 0 && height > 0) {
+    storyMediaPanel.style.setProperty("--media-aspect", width + " / " + height);
+  }
+}
+
 function buildStepElement(step) {
   const wrap = document.createElement("div");
   wrap.className = "story-layer-content";
@@ -822,8 +835,10 @@ function buildStepElement(step) {
     video = document.createElement("video");
     video.src = mediaSrc;
     video.playsInline = true;
+    video.addEventListener("loadedmetadata", () => setMediaAspect(video.videoWidth, video.videoHeight), { once: true });
     wrap.appendChild(video);
   } else if (step.media_type === "model") {
+    setMediaAspect(4, 3);
     wrap.innerHTML =
       '<model-viewer src="' + mediaSrc + '" camera-controls auto-rotate exposure="1" zoom-sensitivity="2.5"></model-viewer>' +
       '<div class="model-loading">Modell wird geladen ...</div>';
@@ -835,6 +850,7 @@ function buildStepElement(step) {
     if (step.media_url) {
       const img = document.createElement("img");
       img.src = mediaSrc;
+      img.addEventListener("load", () => setMediaAspect(img.naturalWidth, img.naturalHeight), { once: true });
       wrap.appendChild(img);
     }
   }
@@ -955,7 +971,6 @@ function playStory(steps, index, route) {
     }
 
            if (target) {
-      updateLiveStats(route, target);
       animateFootstep(route, lastCameraTarget, target, durationMs);
       lastCameraTarget = target;
     }
@@ -1001,29 +1016,33 @@ async function startFollowTrace(route) {
 
   statsOverlay.classList.add("active");
 
-   lastCameraTarget = startCoord;
+  lastCameraTarget = startCoord;
+  const flyDuration = 7500;
   const flyToDone = new Promise(resolve => map.once("moveend", resolve));
-  map.flyTo({ center: startCoord, zoom: 20, duration: 7500, essential: true });
-  
+  activeFlyTo = flyToDone;
+  flyToDone.then(() => { if (activeFlyTo === flyToDone) activeFlyTo = null; });
+  map.flyTo({ center: startCoord, zoom: 20, duration: flyDuration, essential: true });
+
   const statsText =
     route.name + "\n\n" +
     "Dauer: " + (route.duration_minutes ? route.duration_minutes + " min" : "–") + "\n" +
     "Distanz: " + (route.distance_km ? route.distance_km + " km" : "–") +
     (route.notes ? "\n\n" + route.notes : "");
 
+  // Media-/Found-Items-Panels sollen schon während des Reinzoomens erscheinen,
+  // nicht erst danach — die Kamera-Bewegung selbst (animateFootstep) wartet
+  // trotzdem bis flyTo fertig ist, damit sie sich nicht gegenseitig stören.
+  setTimeout(() => {
+    if (steps.length > 0) playStory(steps, 0, route);
+    else openTracePanels(route);
+  }, flyDuration * 0.55);
+
   await Promise.all([
     typewriterInto(statsOverlay, statsText, 55),
     flyToDone
   ]);
 
-  await new Promise(r => setTimeout(r, 400));
   statsOverlay.classList.remove("active");
-
-  if (steps.length === 0) {
-    openTracePanels(route);
-    return;
-  }
-  playStory(steps, 0, route);
 }
 
 storyCloseButton.addEventListener("click", () => {
