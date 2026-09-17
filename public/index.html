@@ -8,7 +8,7 @@
 <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 <script src="/shared.js"></script>
 <style>
-* { box-sizing: border-box; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+* { box-sizing: border-box; font-family: "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 300; }
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 #map { position: absolute; top: 40px; left: 0; right: 0; bottom: 40px; }
 
@@ -80,9 +80,9 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
    davon weiterhin frei gezogen werden kann. */
 #landingIntro {
   position: absolute; top: 60px; left: 20px; width: 420px; max-height: 65vh; overflow-y: auto;
-  color: #fff; font-size: 16px; line-height: 1.8; background: transparent;
+  color: #fff; font-weight: 300; font-size: 16px; line-height: 1.8; background: transparent;
   padding: 24px; z-index: 26; white-space: pre-wrap;
-  text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 20px rgba(0,0,0,.6);
+  text-shadow: 0 0 4px rgba(0,0,0,.9), 0 2px 14px rgba(0,0,0,.85), 0 0 34px rgba(0,0,0,.7);
 }
 
 #statsOverlay {
@@ -201,8 +201,37 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   97% { opacity: 0; }
 }
 
+/* Gelegentliche VHS-Störungen: kurze Tracking-Band- und Bildsprung-Ausschläge,
+   auf unterschiedlichen, langen Zyklen, damit es nicht regelmässig/mechanisch wirkt. */
+.film-glitch-lines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,.5) 0px, rgba(255,255,255,.5) 2px, transparent 2px, transparent 6px);
+  mix-blend-mode: overlay; opacity: 0;
+  animation: glitch-lines 16s linear infinite;
+}
+@keyframes glitch-lines {
+  0%, 97%, 100% { opacity: 0; transform: translateX(0); }
+  97.2% { opacity: .5; transform: translateX(-10px); }
+  97.4% { opacity: .3; transform: translateX(7px); }
+  97.6% { opacity: .45; transform: translateX(-5px); }
+  97.8% { opacity: 0; transform: translateX(0); }
+}
+
+.film-glitch-jump {
+  position: absolute; inset: 0; background: rgba(255,255,255,.06);
+  mix-blend-mode: overlay; opacity: 0;
+  animation: glitch-jump 23s linear infinite;
+}
+@keyframes glitch-jump {
+  0%, 91%, 100% { opacity: 0; transform: translateY(0); }
+  91.15% { opacity: .5; transform: translateY(6px); }
+  91.3% { opacity: .2; transform: translateY(-4px); }
+  91.45% { opacity: .4; transform: translateY(3px); }
+  91.6% { opacity: 0; transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .film-grain, .film-flicker { animation: none; }
+  .film-grain, .film-flicker, .film-glitch-lines, .film-glitch-jump { animation: none; }
 }
 </style>
 </head>
@@ -213,6 +242,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   <div class="film-scanlines"></div>
   <div class="film-vignette"></div>
   <div class="film-flicker"></div>
+  <div class="film-glitch-lines"></div>
+  <div class="film-glitch-jump"></div>
 </div>
 
 <div class="marquee-bar marquee-top">
@@ -352,12 +383,22 @@ function applyAspectRatio(panel, aspect) {
 
 function drawRoute(route) {
   const id = "route-" + route.id;
+  const casingId = id + "-casing";
   let coordinates = parseCoordinates(route.coordinates);
+  const width = Number(route.width || 5);
+  const visibility = route.visible === 0 ? "none" : "visible";
   map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} } });
+  // Dunkle Kontur unter der weissen Linie, damit sie auch auf hellen
+  // Kartenflächen (z.B. Gebäude im hellen Theme) gut sichtbar bleibt.
+  map.addLayer({
+    id: casingId, type: "line", source: id,
+    layout: { "line-cap": "round", "line-join": "round", visibility },
+    paint: { "line-color": "#000000", "line-width": width + 4, "line-opacity": .5, "line-blur": .5 }
+  });
   map.addLayer({
     id, type: "line", source: id,
-    layout: { "line-cap": "round", "line-join": "round", visibility: route.visible === 0 ? "none" : "visible" },
-    paint: { "line-color": "#ffffff", "line-width": Number(route.width || 5), "line-opacity": .9 }
+    layout: { "line-cap": "round", "line-join": "round", visibility },
+    paint: { "line-color": "#ffffff", "line-width": width, "line-opacity": 1 }
   });
   map.on("click", id, () => openTracePanels(route));
   map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
