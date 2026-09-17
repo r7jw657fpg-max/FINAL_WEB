@@ -1,4 +1,5 @@
 import { AwsClient } from "aws4fetch";
+
 function isAuthenticated(request, env) {
   const auth = request.headers.get("Authorization");
   if (!auth) return false;
@@ -16,11 +17,20 @@ function requireAuth() {
   });
 }
 
+// Gibt eine 401-Response zurück wenn nicht eingeloggt, sonst null.
+function requireAdmin(request, env) {
+  return isAuthenticated(request, env) ? null : requireAuth();
+}
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function methodNotAllowed() {
+  return new Response("Method not allowed", { status: 405 });
 }
 
 function newId(prefix) {
@@ -33,18 +43,21 @@ export default {
     const method = request.method;
 
     if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
-      if (!isAuthenticated(request, env)) return requireAuth();
+      const authError = requireAdmin(request, env);
+      if (authError) return authError;
       return env.ASSETS.fetch(request);
     }
-       if (url.pathname === "/api/upload-url") {
-      if (!isAuthenticated(request, env)) return requireAuth();
-      if (method !== "POST") return new Response("Method not allowed", { status: 405 });
+
+    if (url.pathname === "/api/upload-url") {
+      const authError = requireAdmin(request, env);
+      if (authError) return authError;
+      if (method !== "POST") return methodNotAllowed();
 
       try {
         const body = await request.json();
         const key = Date.now() + "-" + Math.random().toString(36).substring(2, 8) + "-" + (body.filename || "file");
 
-               const missing = [];
+        const missing = [];
         if (!env.R2_ACCESS_KEY_ID) missing.push("R2_ACCESS_KEY_ID");
         if (!env.R2_SECRET_ACCESS_KEY) missing.push("R2_SECRET_ACCESS_KEY");
         if (!env.R2_ACCOUNT_ID) missing.push("R2_ACCOUNT_ID");
@@ -72,23 +85,8 @@ export default {
         return json({ error: String((err && err.message) || err) }, 500);
       }
     }
-    if (url.pathname === "/api/upload") {
-      if (!isAuthenticated(request, env)) return requireAuth();
-      if (method !== "POST") return new Response("Method not allowed", { status: 405 });
 
-      const formData = await request.formData();
-      const file = formData.get("file");
-      if (!file) return json({ error: "Keine Datei erhalten" }, 400);
-
-      const key = Date.now() + "-" + Math.random().toString(36).substring(2, 8) + "-" + file.name;
-      await env.BUCKET.put(key, file.stream(), {
-        httpMetadata: { contentType: file.type }
-      });
-
-      return json({ url: "/files/" + key });
-    }
-
-     if (url.pathname.startsWith("/files/")) {
+    if (url.pathname.startsWith("/files/")) {
       const key = decodeURIComponent(url.pathname.replace("/files/", ""));
       const object = await env.BUCKET.get(key);
       if (!object) return new Response("Nicht gefunden", { status: 404 });
@@ -108,8 +106,9 @@ export default {
         const { results } = await env.DB.prepare("SELECT * FROM points").all();
         return json(results);
       }
-           if (method === "POST") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+      if (method === "POST") {
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         const pointId = newId("point");
         await env.DB.prepare(
@@ -123,14 +122,15 @@ export default {
         ).run();
         return json({ id: pointId }, 201);
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     if (url.pathname.startsWith("/api/points/") && !url.pathname.includes("/entries")) {
       const pointId = url.pathname.split("/api/points/")[1];
 
       if (method === "PUT") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         await env.DB.prepare(
           "UPDATE points SET title=?, lng=?, lat=?, type=?, route_id=?, visible=?, updated_at=? WHERE id=?"
@@ -142,14 +142,15 @@ export default {
         return json({ ok: true });
       }
 
-                if (method === "DELETE") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+      if (method === "DELETE") {
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         await env.DB.prepare("DELETE FROM point_entries WHERE point_id = ?").bind(pointId).run();
         await env.DB.prepare("DELETE FROM points WHERE id = ?").bind(pointId).run();
         return json({ ok: true });
       }
 
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     /* ===== POINT ENTRIES (Fotos + Notizen je Objekt) ===== */
@@ -162,7 +163,8 @@ export default {
         return json(results);
       }
       if (method === "POST") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         const entryId = newId("entry");
         await env.DB.prepare(
@@ -170,26 +172,28 @@ export default {
         ).bind(entryId, pointId, body.image_url || "", body.note || "", new Date().toISOString()).run();
         return json({ id: entryId }, 201);
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     if (url.pathname.startsWith("/api/entries/")) {
       const entryId = url.pathname.split("/api/entries/")[1];
 
       if (method === "DELETE") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         await env.DB.prepare("DELETE FROM point_entries WHERE id = ?").bind(entryId).run();
         return json({ ok: true });
       }
       if (method === "PUT") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         await env.DB.prepare("UPDATE point_entries SET image_url=?, note=? WHERE id=?")
           .bind(body.image_url || "", body.note || "", entryId).run();
         return json({ ok: true });
       }
 
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     /* ===== ROUTES (Traces) ===== */
@@ -200,7 +204,8 @@ export default {
         return json(results);
       }
       if (method === "POST") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         const routeId = newId("route");
         await env.DB.prepare(
@@ -214,7 +219,7 @@ export default {
         ).run();
         return json({ id: routeId }, 201);
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     if (url.pathname.match(/^\/api\/routes\/[^/]+\/steps$/)) {
@@ -225,7 +230,8 @@ export default {
         return json(results);
       }
       if (method === "POST") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         const stepId = newId("step");
         const { results } = await env.DB.prepare("SELECT MAX(position) as maxPos FROM trace_steps WHERE route_id = ?").bind(routeId).all();
@@ -239,12 +245,13 @@ export default {
         ).run();
         return json({ id: stepId, position: nextPos }, 201);
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     if (url.pathname === "/api/steps/reorder") {
-      if (!isAuthenticated(request, env)) return requireAuth();
-      if (method !== "POST") return new Response("Method not allowed", { status: 405 });
+      const authError = requireAdmin(request, env);
+      if (authError) return authError;
+      if (method !== "POST") return methodNotAllowed();
       const body = await request.json();
       for (const item of body.order) {
         await env.DB.prepare("UPDATE trace_steps SET position = ? WHERE id = ?").bind(item.position, item.id).run();
@@ -252,13 +259,14 @@ export default {
       return json({ ok: true });
     }
 
-        if (url.pathname.startsWith("/api/steps/") && !url.pathname.includes("/items")) {
+    if (url.pathname.startsWith("/api/steps/") && !url.pathname.includes("/items")) {
       const stepId = url.pathname.split("/api/steps/")[1];
 
       if (method === "PUT") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
-                await env.DB.prepare(
+        await env.DB.prepare(
           "UPDATE trace_steps SET media_type=?, media_url=?, text_overlay=?, audio_url=?, transition=?, category=?, lng=?, lat=? WHERE id=?"
         ).bind(
           body.media_type || "image", body.media_url || "", body.text_overlay || "",
@@ -268,18 +276,20 @@ export default {
         return json({ ok: true });
       }
       if (method === "DELETE") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         await env.DB.prepare("DELETE FROM trace_steps WHERE id = ?").bind(stepId).run();
         return json({ ok: true });
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     if (url.pathname.startsWith("/api/routes/")) {
       const routeId = url.pathname.split("/api/routes/")[1];
 
       if (method === "PUT") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         await env.DB.prepare(
           "UPDATE routes SET name=?, color=?, width=?, coordinates=?, visible=?, updated_at=?, duration_minutes=?, distance_km=?, notes=?, video_url=? WHERE id=?"
@@ -294,14 +304,16 @@ export default {
       }
 
       if (method === "DELETE") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         await env.DB.prepare("DELETE FROM trace_steps WHERE route_id = ?").bind(routeId).run();
         await env.DB.prepare("DELETE FROM routes WHERE id = ?").bind(routeId).run();
         return json({ ok: true });
       }
 
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
+
     if (url.pathname.startsWith("/api/settings/")) {
       const key = url.pathname.split("/api/settings/")[1];
 
@@ -310,23 +322,26 @@ export default {
         return json({ key, value: row ? row.value : "" });
       }
       if (method === "PUT") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         await env.DB.prepare(
           "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
         ).bind(key, body.value || "").run();
         return json({ ok: true });
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
-        if (url.pathname.match(/^\/api\/steps\/[^/]+\/items$/)) {
+
+    if (url.pathname.match(/^\/api\/steps\/[^/]+\/items$/)) {
       const stepId = url.pathname.split("/")[3];
       if (method === "GET") {
         const { results } = await env.DB.prepare("SELECT * FROM step_items WHERE step_id = ? ORDER BY created_at").bind(stepId).all();
         return json(results);
       }
       if (method === "POST") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         const itemId = newId("item");
         await env.DB.prepare(
@@ -334,25 +349,28 @@ export default {
         ).bind(itemId, stepId, body.image_url || "", body.note || "", new Date().toISOString()).run();
         return json({ id: itemId }, 201);
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
 
     if (url.pathname.startsWith("/api/items/")) {
       const itemId = url.pathname.split("/api/items/")[1];
       if (method === "DELETE") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         await env.DB.prepare("DELETE FROM step_items WHERE id = ?").bind(itemId).run();
         return json({ ok: true });
       }
       if (method === "PUT") {
-        if (!isAuthenticated(request, env)) return requireAuth();
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
         const body = await request.json();
         await env.DB.prepare("UPDATE step_items SET image_url=?, note=? WHERE id=?")
           .bind(body.image_url || "", body.note || "", itemId).run();
         return json({ ok: true });
       }
-      return new Response("Method not allowed", { status: 405 });
+      return methodNotAllowed();
     }
+
     return env.ASSETS.fetch(request);
   },
 };

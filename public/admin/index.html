@@ -5,62 +5,51 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+<script src="/shared.js"></script>
 <style>
 * { box-sizing: border-box; }
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
 #map { position: absolute; inset: 0; }
 
-#editor {
-  position: absolute; z-index: 20; top: 18px; left: 18px;
-  width: 380px; max-height: calc(100vh - 36px); overflow-y: auto;
+.panel {
+  position: absolute; z-index: 20; top: 18px;
+  max-height: calc(100vh - 36px); overflow-y: auto;
   padding: 22px; background: rgba(12,12,12,.96); color: white;
   border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
   box-shadow: 0 20px 70px rgba(0,0,0,.5);
 }
+#sidebar { left: 18px; width: 320px; }
+#detail { left: 356px; width: 420px; display: none; }
+#detail.active { display: block; }
 
-.editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; }
+.panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; gap: 10px; }
 .kicker { font-size: 9px; letter-spacing: .18em; opacity: .45; }
-.editor-title { margin-top: 5px; font-size: 22px; font-weight: 400; }
+.panel-title { margin-top: 5px; font-size: 22px; font-weight: 400; }
+.detail-title { margin: 4px 0 22px; font-size: 20px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .section { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,.1); }
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; }
+.section:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; gap: 8px; }
 .section-title { font-size: 13px; }
 .section-subtitle { margin-top: 3px; font-size: 9px; opacity: .4; }
 
 button { font-family: inherit; cursor: pointer; }
-.small-button { padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 4px; background: white; color: black; font-size: 10px; }
+.small-button { padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 4px; background: white; color: black; font-size: 10px; white-space: nowrap; }
 .small-button:hover { opacity: .8; }
 .small-button:disabled { opacity: .3; cursor: default; }
+.icon-button { border: 1px solid rgba(255,255,255,.2); border-radius: 4px; background: transparent; color: white; font-size: 11px; padding: 7px 11px; }
+.icon-button:hover { background: rgba(255,255,255,.08); }
 
-.layer-list { display: flex; flex-direction: column; gap: 6px; }
-.layer { overflow: hidden; border: 1px solid rgba(0,0,0,.12); border-radius: 5px; background: #f4f4f4; }
-.layer-header { display: flex; align-items: center; gap: 9px; padding: 10px; cursor: pointer; color: #111; }
-.layer-header:hover { background: rgba(0,0,0,.04); }
-.layer-color { width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; }
-.layer-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: #111; }
-.visibility { border: 0; background: transparent; color: #111; opacity: .6; cursor: pointer; }
-.layer-body { display: none; padding: 12px; border-top: 1px solid rgba(0,0,0,.1); }
-.layer.open .layer-body { display: block; }
-.layer-body label { color: #111; }
-.layer-body input[type=text], .layer-body textarea, .layer-body select, .layer-body input[type=number] {
-  background: #fff; color: #111; border: 1px solid rgba(0,0,0,.2);
-}
-.layer-body .hint { background: rgba(0,0,0,.05); color: #333; }
-.objects-title { color: #111; }
-
-.nested-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
-.nested-layer { overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 5px; background: #4a4a4a; }
-.nested-layer .layer-header { color: #fff; }
-.nested-layer .layer-header:hover { background: rgba(255,255,255,.06); }
-.nested-layer .layer-name { color: #fff; }
-.nested-layer .visibility { color: #fff; }
-.nested-layer .layer-body { border-top: 1px solid rgba(255,255,255,.12); }
-.nested-layer .layer-body label { color: #fff; }
-.nested-layer .layer-body input[type=text], .nested-layer .layer-body textarea, .nested-layer .layer-body select, .nested-layer .layer-body input[type=number] {
-  background: #333; color: #fff; border: 1px solid rgba(255,255,255,.22);
-}
-.nested-layer .layer-body .hint { background: rgba(255,255,255,.06); color: #fff; }
-.nested-layer .objects-title { color: #fff; }
+/* Trace-Liste (Sidebar) */
+.route-list { display: flex; flex-direction: column; gap: 6px; }
+.route-card { display: flex; align-items: center; gap: 9px; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 5px; background: rgba(255,255,255,.03); cursor: pointer; }
+.route-card:hover { background: rgba(255,255,255,.07); }
+.route-card.selected { background: rgba(255,212,0,.1); border-color: #ffd400; }
+.route-color { width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; }
+.route-card-body { flex: 1; overflow: hidden; }
+.route-card-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
+.route-card-meta { margin-top: 2px; font-size: 9px; opacity: .45; }
+.visibility { border: 0; background: transparent; color: inherit; opacity: .6; cursor: pointer; font-size: 13px; flex-shrink: 0; }
 
 label { display: block; margin-bottom: 13px; font-size: 10px; opacity: .8; }
 input[type=text], textarea, select, input[type=number] { display: block; width: 100%; margin-top: 6px; padding: 9px; border: 1px solid rgba(255,255,255,.18); border-radius: 4px; outline: none; background: #1c1c1c; color: white; font-family: inherit; }
@@ -69,12 +58,16 @@ input[type=color] { display: block; width: 100%; height: 32px; margin-top: 6px; 
 input[type=range] { width: 100%; margin-top: 7px; }
 input[type=file] { display: block; width: 100%; font-size: 9px; color: white; margin-top: 6px; }
 
+.field-row { display: flex; gap: 10px; }
+.field-row label { flex: 1; }
+
 .actions { display: flex; gap: 6px; }
 .actions button { flex: 1; padding: 8px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
 .delete { background: rgba(255,69,58,.15) !important; color: #ff453a !important; }
 
 .hint { padding: 9px; border-radius: 4px; background: rgba(255,255,255,.04); font-size: 10px; line-height: 1.5; opacity: .5; }
-#status { font-size: 9px; opacity: .4; }
+.empty-state { padding: 26px 14px; text-align: center; opacity: .4; font-size: 11px; }
+#status { font-size: 9px; opacity: .4; margin-top: 4px; }
 
 .entries-box { margin-top: 6px; margin-bottom: 13px; padding: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; background: rgba(255,255,255,.02); }
 .entries-title { font-size: 10px; opacity: .7; margin-bottom: 8px; }
@@ -87,9 +80,6 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 .entry-form label { margin-bottom: 8px; }
 .entry-add-button { width: 100%; margin-top: 4px; padding: 7px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
 
-.objects-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px; }
-.objects-title { font-size: 10px; opacity: .7; }
-
 #dialog { position: absolute; z-index: 100; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
 #dialog.active { display: flex; }
 .dialog-box { width: 340px; max-width: 90vw; padding: 25px; border-radius: 8px; background: #111; color: white; }
@@ -98,17 +88,37 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 .dialog-actions button { flex: 1; padding: 9px; border: 0; border-radius: 4px; }
 
 .marker-badge { width: 30px; height: 30px; border-radius: 50%; background: #0c0c0c; border: 2px solid #ffd400; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+/* Trace-Verlauf als Timeline */
+.timeline { position: relative; padding-left: 22px; }
+.timeline::before { content: ""; position: absolute; left: 8px; top: 2px; bottom: 2px; width: 2px; background: rgba(255,255,255,.12); }
+.timeline-step { position: relative; margin-bottom: 10px; }
+.timeline-step:last-child { margin-bottom: 0; }
+.timeline-step::before {
+  content: ""; position: absolute; left: -18px; top: 16px; width: 10px; height: 10px;
+  border-radius: 50%; background: var(--step-color); box-shadow: 0 0 0 3px #0c0c0c;
+}
+.timeline-card { overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; background: rgba(255,255,255,.03); }
+.timeline-header { display: flex; align-items: center; gap: 9px; padding: 10px; cursor: pointer; }
+.timeline-header:hover { background: rgba(255,255,255,.05); }
+.timeline-number {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; background: var(--step-color);
+  color: #000; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.timeline-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
+.timeline-body { display: none; padding: 12px; border-top: 1px solid rgba(255,255,255,.1); }
+.timeline-step.open .timeline-body { display: block; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<aside id="editor">
-  <div class="editor-header">
+<aside id="sidebar" class="panel">
+  <div class="panel-header">
     <div>
       <div class="kicker">MAP PROJECT</div>
-      <div class="editor-title">Map Editor</div>
+      <div class="panel-title">Map Editor</div>
     </div>
   </div>
 
@@ -132,10 +142,55 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
       <button id="gpxButton" class="small-button">+ GPX</button>
     </div>
     <input id="gpxInput" type="file" accept=".gpx" hidden>
-    <div id="routesList" class="layer-list"></div>
+    <div id="routesList" class="route-list"></div>
   </section>
 
   <div id="status">Karte wird geladen ...</div>
+</aside>
+
+<aside id="detail" class="panel">
+  <div class="panel-header">
+    <button id="detailClose" class="icon-button">← Zur Liste</button>
+    <div class="actions" style="flex:none;">
+      <button id="detailFocus" class="small-button">Fokussieren</button>
+      <button id="detailDelete" class="small-button delete">Löschen</button>
+    </div>
+  </div>
+  <div class="kicker">TRACE BEARBEITEN</div>
+  <div class="detail-title" id="detailName">–</div>
+
+  <section class="section">
+    <div class="section-title">Einstellungen</div>
+    <label>Name<input id="fieldName" type="text"></label>
+    <div class="field-row">
+      <label>Farbe<input id="fieldColor" type="color"></label>
+      <label>Linienstärke<input id="fieldWidth" type="range" min="1" max="12"></label>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">Statistik &amp; Medien</div>
+    <div class="field-row">
+      <label>Dauer (Minuten)<input id="fieldDuration" type="number"></label>
+      <label>Distanz (km)<input id="fieldDistance" type="number" step="0.1"></label>
+    </div>
+    <label>Notizen (optional)<textarea id="fieldNotes"></textarea></label>
+    <label>Medium (Bild oder Video)
+      <input id="fieldVideoUrl" type="text" placeholder="https://...">
+      <input id="fieldVideoUpload" type="file" accept="image/*,video/*">
+    </label>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Verlauf</div>
+        <div class="section-subtitle">Timeline der Schritte</div>
+      </div>
+      <button id="addStepButton" class="small-button">+ Schritt</button>
+    </div>
+    <div id="timeline" class="timeline"></div>
+  </section>
 </aside>
 
 <div id="dialog">
@@ -153,7 +208,7 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 </div>
 
 <script>
-mapboxgl.accessToken = "pk.eyJ1IjoibGVvbnJvY2EiLCJhIjoiY21wYmY1Yjl6MDNxczJxc2U0MzByNHA3OCJ9.-BaGJWtZCr3lKDKP1o9THQ";
+mapboxgl.accessToken = MAPBOX_TOKEN;
 
 const map = new mapboxgl.Map({
   container: "map",
@@ -169,31 +224,15 @@ let routes = [];
 let markers = [];
 let pendingGpx = null;
 let placingStep = null;
+let selectedRouteId = null;
 
 const routesList = document.getElementById("routesList");
 const statusElement = document.getElementById("status");
+const detailPanel = document.getElementById("detail");
+const detailName = document.getElementById("detailName");
+const timelineEl = document.getElementById("timeline");
 
 function status(text) { statusElement.innerText = text; }
-
-function parseCoordinates(value) {
-  let result = value;
-  let tries = 0;
-  while (typeof result === "string" && tries < 5) {
-    try { result = JSON.parse(result); } catch (e) { break; }
-    tries++;
-  }
-  return result;
-}
-
-function markerIconSvg(category) {
-  if (category === "scan") {
-    return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10 L11 7 L14 7"/><path d="M21 10 L21 7 L18 7"/><path d="M11 22 L11 25 L14 25"/><path d="M21 22 L21 25 L18 25"/><line x1="9" y1="16" x2="23" y2="16"/></g></svg>';
-  }
-  if (category === "commission") {
-    return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="5" width="16" height="20" rx="1" stroke-width="1.8"/><line x1="10" y1="10" x2="22" y2="10" stroke-width="1.1"/><line x1="10" y1="14" x2="22" y2="14" stroke-width="1.1"/><line x1="10" y1="18" x2="17" y2="18" stroke-width="1.1"/><g transform="translate(18,20) rotate(38)"><rect x="-1" y="-19" width="2" height="5" rx="0.6" fill="#fff" stroke="none"/><line x1="-1.7" y1="-16" x2="-1.7" y2="-11" stroke-width="0.6"/><line x1="0" y1="-14" x2="0" y2="-1" stroke-width="1"/><path d="M-1 -1 L1 -1 L0 3 Z" fill="#fff" stroke="none"/></g></g></svg>';
-  }
-  return '<svg width="18" height="18" viewBox="0 0 32 32"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14 L16 9 Q16 6.5 13.5 6.5 Q11 6.5 11 9" stroke-width="1.8"/><path d="M16 14 L7 24 Q5.5 26 8 26 L24 26 Q26.5 26 25 24 Z" stroke-width="2"/><line x1="10" y1="26" x2="22" y2="26" stroke-width="1.2"/></g></svg>';
-}
 
 function syncStepMarker(step) {
   markers = markers.filter(m => {
@@ -239,7 +278,7 @@ async function uploadFile(file) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename: file.name, contentType: file.type })
   });
-   if (!urlResponse.ok) {
+  if (!urlResponse.ok) {
     const errText = await urlResponse.text().catch(() => "");
     throw new Error("Konnte Upload-URL nicht anfordern: " + urlResponse.status + " " + errText);
   }
@@ -253,15 +292,6 @@ async function uploadFile(file) {
   if (!putResponse.ok) throw new Error("Upload fehlgeschlagen: " + putResponse.status);
 
   return { url: publicUrl };
-}
-
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-  });
-  if (!response.ok) throw new Error("API-Fehler: " + response.status);
-  return response.status === 204 ? null : response.json();
 }
 
 /* ===== ROUTES (Traces) ===== */
@@ -300,7 +330,7 @@ function focusRoute(route) {
   coordinates.forEach(c => bounds.extend(c));
   map.fitBounds(bounds, { padding: 100, duration: 900 });
 }
-  
+
 async function saveRoute(route) {
   await api("/api/routes/" + route.id, {
     method: "PUT",
@@ -407,27 +437,35 @@ function buildItemsBox(step) {
   };
 }
 
-/* ===== TIMELINE STEPS ===== */
+/* ===== TIMELINE-SCHRITTE ===== */
 
-function buildStepLayer(step, index, total, moveStep, deleteStep) {
+function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   const stepColor = STEP_COLORS[index % STEP_COLORS.length];
-  const layer = document.createElement("div");
-  layer.className = "layer nested-layer";
-  layer.style.borderLeft = "4px solid " + stepColor;
+  const wrap = document.createElement("div");
+  wrap.className = "timeline-step";
+  wrap.style.setProperty("--step-color", stepColor);
+
+  const card = document.createElement("div");
+  card.className = "timeline-card";
+
+  function stepLabel() {
+    const category = step.category && step.category !== "weg" ? " · " + CATEGORY_LABELS[step.category] : "";
+    return (step.media_type || "image") + category;
+  }
 
   const header = document.createElement("div");
-  header.className = "layer-header";
-  const badge = document.createElement("div");
-  badge.className = "layer-color";
-  badge.style.background = stepColor;
+  header.className = "timeline-header";
+  const number = document.createElement("div");
+  number.className = "timeline-number";
+  number.innerText = index + 1;
   const nameWrap = document.createElement("div");
-  nameWrap.className = "layer-name";
-  nameWrap.innerText = "Schritt " + (index + 1) + " – " + (step.media_type || "image");
-  header.append(badge, nameWrap);
-  layer.appendChild(header);
+  nameWrap.className = "timeline-name";
+  nameWrap.innerText = stepLabel();
+  header.append(number, nameWrap);
+  card.appendChild(header);
 
   const body = document.createElement("div");
-  body.className = "layer-body";
+  body.className = "timeline-body";
 
   const typeLabel = document.createElement("label");
   typeLabel.innerText = "Medien-Typ";
@@ -502,11 +540,12 @@ function buildStepLayer(step, index, total, moveStep, deleteStep) {
   actions.append(up, down, del);
 
   body.append(typeLabel, categoryLabel, positionBox, mediaLabel, textLabel, audioLabel, transitionLabel, itemsBoxWrap.el, actions);
-  layer.appendChild(body);
+  card.appendChild(body);
+  wrap.appendChild(card);
 
   header.addEventListener("click", () => {
-    layer.classList.toggle("open");
-    if (layer.classList.contains("open")) itemsBoxWrap.load();
+    wrap.classList.toggle("open");
+    if (wrap.classList.contains("open")) itemsBoxWrap.load();
   });
 
   async function persist() {
@@ -523,11 +562,12 @@ function buildStepLayer(step, index, total, moveStep, deleteStep) {
 
   typeSelect.addEventListener("change", () => {
     step.media_type = typeSelect.value;
-    nameWrap.innerText = "Schritt " + (index + 1) + " – " + step.media_type;
+    nameWrap.innerText = stepLabel();
     persist();
   });
   categorySelect.addEventListener("change", () => {
     step.category = categorySelect.value;
+    nameWrap.innerText = stepLabel();
     positionBox.style.display = step.category !== "weg" ? "block" : "none";
     persist();
     syncStepMarker(step);
@@ -591,12 +631,46 @@ function buildStepLayer(step, index, total, moveStep, deleteStep) {
     status("Schritt gelöscht.");
   });
 
-  return layer;
+  return wrap;
 }
 
-/* ===== RENDER ROUTES + TIMELINE ===== */
+function renderTimeline(route) {
+  timelineEl.innerHTML = "";
+  if (!route.steps || route.steps.length === 0) {
+    timelineEl.innerHTML = '<div class="empty-state">Noch keine Schritte in dieser Trace.</div>';
+    return;
+  }
 
-function renderRoutes() {
+  async function moveStep(stepId, direction) {
+    const idx = route.steps.findIndex(s => s.id === stepId);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= route.steps.length) return;
+    const temp = route.steps[idx];
+    route.steps[idx] = route.steps[newIdx];
+    route.steps[newIdx] = temp;
+    const order = route.steps.map((s, i) => ({ id: s.id, position: i }));
+    await api("/api/steps/reorder", { method: "POST", body: JSON.stringify({ order }) });
+    renderTimeline(route);
+  }
+
+  async function deleteStep(stepId) {
+    const step = route.steps.find(s => s.id === stepId);
+    await api("/api/steps/" + stepId, { method: "DELETE" });
+    route.steps = route.steps.filter(s => s.id !== stepId);
+    if (step) syncStepMarker({ ...step, category: "weg" });
+    renderTimeline(route);
+    renderRouteList();
+  }
+
+  route.steps.forEach((step, index) => {
+    timelineEl.appendChild(buildTimelineStep(step, index, route.steps.length, moveStep, deleteStep));
+  });
+}
+
+/* ===== SIDEBAR: TRACE-LISTE ===== */
+
+function renderRouteList() {
   routesList.innerHTML = "";
   if (routes.length === 0) {
     routesList.innerHTML = '<div class="hint">Noch keine Traces importiert.</div>';
@@ -604,155 +678,27 @@ function renderRoutes() {
   }
 
   routes.forEach(route => {
-    const layer = document.createElement("div");
-    layer.className = "layer";
+    const card = document.createElement("div");
+    card.className = "route-card" + (route.id === selectedRouteId ? " selected" : "");
 
-    const header = document.createElement("div");
-    header.className = "layer-header";
     const color = document.createElement("div");
-    color.className = "layer-color";
+    color.className = "route-color";
     color.style.background = route.color;
+
+    const body = document.createElement("div");
+    body.className = "route-card-body";
     const name = document.createElement("div");
-    name.className = "layer-name";
+    name.className = "route-card-name";
     name.innerText = route.name;
+    const meta = document.createElement("div");
+    meta.className = "route-card-meta";
+    meta.innerText = (route.steps ? route.steps.length : 0) + " Schritte";
+    body.append(name, meta);
+
     const visibility = document.createElement("button");
     visibility.className = "visibility";
     visibility.innerText = route.visible === 0 ? "○" : "●";
-
-    header.append(color, name, visibility);
-    layer.appendChild(header);
-
-    const body = document.createElement("div");
-    body.className = "layer-body";
-
-    const nameLabel = document.createElement("label");
-    nameLabel.innerText = "Name";
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.value = route.name;
-    nameLabel.appendChild(nameInput);
-
-    const colorLabel = document.createElement("label");
-    colorLabel.innerText = "Farbe";
-    const colorInput = document.createElement("input");
-    colorInput.type = "color";
-    colorInput.value = route.color;
-    colorLabel.appendChild(colorInput);
-
-    const widthLabel = document.createElement("label");
-    widthLabel.innerText = "Linienstärke";
-    const widthInput = document.createElement("input");
-    widthInput.type = "range";
-    widthInput.min = "1"; widthInput.max = "12";
-    widthInput.value = route.width;
-    widthLabel.appendChild(widthInput);
-
-    const durationLabel = document.createElement("label");
-    durationLabel.innerText = "Trace Statistics – Dauer (Minuten)";
-    const durationInput = document.createElement("input");
-    durationInput.type = "number";
-    durationInput.value = route.duration_minutes || "";
-    durationLabel.appendChild(durationInput);
-
-    const distanceLabel = document.createElement("label");
-    distanceLabel.innerText = "Trace Statistics – Distanz (km)";
-    const distanceInput = document.createElement("input");
-    distanceInput.type = "number";
-    distanceInput.step = "0.1";
-    distanceInput.value = route.distance_km || "";
-    distanceLabel.appendChild(distanceInput);
-
-    const notesLabel = document.createElement("label");
-    notesLabel.innerText = "Trace Statistics – Notizen (optional)";
-    const notesInput = document.createElement("textarea");
-    notesInput.value = route.notes || "";
-    notesLabel.appendChild(notesInput);
-
-      const videoLabel = document.createElement("label");
-    videoLabel.innerText = "Trace Statistics – Medium (Bild oder Video)";
-    const videoInput = document.createElement("input");
-    videoInput.type = "text"; videoInput.placeholder = "https://...";
-    videoInput.value = route.video_url || "";
-    const videoUpload = document.createElement("input");
-    videoUpload.type = "file"; videoUpload.accept = "image/*,video/*";
-    videoLabel.append(videoInput, videoUpload);
-
-    const actions = document.createElement("div");
-    actions.className = "actions";
-    const focus = document.createElement("button");
-    focus.innerText = "Fokussieren";
-    const remove = document.createElement("button");
-    remove.innerText = "Löschen";
-    remove.className = "delete";
-    actions.append(focus, remove);
-
-    body.append(nameLabel, colorLabel, widthLabel, durationLabel, distanceLabel, notesLabel, videoLabel, actions);
-
-    const timelineHeader = document.createElement("div");
-    timelineHeader.className = "objects-header";
-    const timelineTitle = document.createElement("div");
-    timelineTitle.className = "objects-title";
-    timelineTitle.innerText = "Trace-Verlauf (Timeline)";
-    const addStepButton = document.createElement("button");
-    addStepButton.className = "small-button";
-    addStepButton.innerText = "+ Schritt";
-    timelineHeader.append(timelineTitle, addStepButton);
-    body.appendChild(timelineHeader);
-
-    const stepsList = document.createElement("div");
-    stepsList.className = "nested-list";
-
-    function renderSteps() {
-      stepsList.innerHTML = "";
-      if (!route.steps || route.steps.length === 0) {
-        stepsList.innerHTML = '<div class="hint">Noch keine Schritte.</div>';
-        return;
-      }
-      route.steps.forEach((step, index) => {
-        stepsList.appendChild(buildStepLayer(step, index, route.steps.length, moveStep, deleteStep));
-      });
-    }
-
-    async function moveStep(stepId, direction) {
-      const idx = route.steps.findIndex(s => s.id === stepId);
-      if (idx < 0) return;
-      const newIdx = idx + direction;
-      if (newIdx < 0 || newIdx >= route.steps.length) return;
-      const temp = route.steps[idx];
-      route.steps[idx] = route.steps[newIdx];
-      route.steps[newIdx] = temp;
-      const order = route.steps.map((s, i) => ({ id: s.id, position: i }));
-      await api("/api/steps/reorder", { method: "POST", body: JSON.stringify({ order }) });
-      renderSteps();
-    }
-
-    async function deleteStep(stepId) {
-      const step = route.steps.find(s => s.id === stepId);
-      await api("/api/steps/" + stepId, { method: "DELETE" });
-      route.steps = route.steps.filter(s => s.id !== stepId);
-      if (step) syncStepMarker({ ...step, category: "weg" });
-      renderSteps();
-    }
-
-    addStepButton.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      const created = await api("/api/routes/" + route.id + "/steps", {
-        method: "POST",
-        body: JSON.stringify({ media_type: "image", category: "weg" })
-      });
-      route.steps = route.steps || [];
-      route.steps.push({ id: created.id, route_id: route.id, position: created.position, media_type: "image", media_url: "", text_overlay: "", audio_url: "", transition: "cut", category: "weg", lng: null, lat: null });
-      renderSteps();
-      status("Schritt hinzugefügt.");
-    });
-
-    renderSteps();
-    body.appendChild(stepsList);
-
-    layer.appendChild(body);
-
-    header.addEventListener("click", () => layer.classList.toggle("open"));
-
+    visibility.title = "Sichtbarkeit umschalten";
     visibility.addEventListener("click", async (event) => {
       event.stopPropagation();
       route.visible = route.visible === 0 ? 1 : 0;
@@ -761,50 +707,112 @@ function renderRoutes() {
       await saveRoute(route);
     });
 
-    async function persistRoute() {
-      await saveRoute(route);
-      drawRoute(route);
-    }
-
-    nameInput.addEventListener("change", () => { route.name = nameInput.value; name.innerText = route.name; persistRoute(); });
-    colorInput.addEventListener("change", () => { route.color = colorInput.value; color.style.background = route.color; persistRoute(); });
-    widthInput.addEventListener("change", () => { route.width = Number(widthInput.value); persistRoute(); });
-    durationInput.addEventListener("change", () => { route.duration_minutes = durationInput.value ? Number(durationInput.value) : null; persistRoute(); });
-    distanceInput.addEventListener("change", () => { route.distance_km = distanceInput.value ? Number(distanceInput.value) : null; persistRoute(); });
-    notesInput.addEventListener("change", () => { route.notes = notesInput.value; persistRoute(); });
-    videoInput.addEventListener("change", () => { route.video_url = videoInput.value; persistRoute(); });
-
-    videoUpload.addEventListener("change", async () => {
-      const file = videoUpload.files[0];
-      if (!file) return;
-      status("Video wird hochgeladen...");
-      try {
-        const uploaded = await uploadFile(file);
-        route.video_url = uploaded.url;
-        videoInput.value = uploaded.url;
-        await persistRoute();
-        status("Video hochgeladen.");
-      } catch (error) {
-        console.error(error);
-        status("Video-Upload fehlgeschlagen.");
-      }
-    });
-
-    focus.addEventListener("click", () => focusRoute(route));
-
-    remove.addEventListener("click", async () => {
-      if (!confirm("Diese Trace wirklich löschen?")) return;
-      await api("/api/routes/" + route.id, { method: "DELETE" });
-      removeRouteLayer(route);
-      (route.steps || []).forEach(s => syncStepMarker({ ...s, category: "weg" }));
-      routes = routes.filter(r => r.id !== route.id);
-      renderRoutes();
-      status("Trace gelöscht.");
-    });
-
-    routesList.appendChild(layer);
+    card.append(color, body, visibility);
+    card.addEventListener("click", () => selectRoute(route.id));
+    routesList.appendChild(card);
   });
 }
+
+/* ===== DETAIL-PANEL: EINE TRACE BEARBEITEN ===== */
+
+function selectRoute(id) {
+  selectedRouteId = id;
+  renderRouteList();
+  renderDetail();
+}
+
+function closeDetail() {
+  selectedRouteId = null;
+  renderRouteList();
+  renderDetail();
+}
+
+function renderDetail() {
+  const route = routes.find(r => r.id === selectedRouteId);
+  if (!route) {
+    detailPanel.classList.remove("active");
+    return;
+  }
+  detailPanel.classList.add("active");
+  detailName.innerText = route.name;
+
+  const nameInput = document.getElementById("fieldName");
+  const colorInput = document.getElementById("fieldColor");
+  const widthInput = document.getElementById("fieldWidth");
+  const durationInput = document.getElementById("fieldDuration");
+  const distanceInput = document.getElementById("fieldDistance");
+  const notesInput = document.getElementById("fieldNotes");
+  const videoInput = document.getElementById("fieldVideoUrl");
+  const videoUpload = document.getElementById("fieldVideoUpload");
+
+  nameInput.value = route.name;
+  colorInput.value = route.color;
+  widthInput.value = route.width;
+  durationInput.value = route.duration_minutes || "";
+  distanceInput.value = route.distance_km || "";
+  notesInput.value = route.notes || "";
+  videoInput.value = route.video_url || "";
+  videoUpload.value = "";
+
+  async function persistRoute() {
+    await saveRoute(route);
+    drawRoute(route);
+    detailName.innerText = route.name;
+    renderRouteList();
+  }
+
+  nameInput.onchange = () => { route.name = nameInput.value; persistRoute(); };
+  colorInput.onchange = () => { route.color = colorInput.value; persistRoute(); };
+  widthInput.onchange = () => { route.width = Number(widthInput.value); persistRoute(); };
+  durationInput.onchange = () => { route.duration_minutes = durationInput.value ? Number(durationInput.value) : null; persistRoute(); };
+  distanceInput.onchange = () => { route.distance_km = distanceInput.value ? Number(distanceInput.value) : null; persistRoute(); };
+  notesInput.onchange = () => { route.notes = notesInput.value; persistRoute(); };
+  videoInput.onchange = () => { route.video_url = videoInput.value; persistRoute(); };
+
+  videoUpload.onchange = async () => {
+    const file = videoUpload.files[0];
+    if (!file) return;
+    status("Video wird hochgeladen...");
+    try {
+      const uploaded = await uploadFile(file);
+      route.video_url = uploaded.url;
+      videoInput.value = uploaded.url;
+      await persistRoute();
+      status("Video hochgeladen.");
+    } catch (error) {
+      console.error(error);
+      status("Video-Upload fehlgeschlagen.");
+    }
+  };
+
+  document.getElementById("detailFocus").onclick = () => focusRoute(route);
+
+  document.getElementById("detailDelete").onclick = async () => {
+    if (!confirm("Diese Trace wirklich löschen?")) return;
+    await api("/api/routes/" + route.id, { method: "DELETE" });
+    removeRouteLayer(route);
+    (route.steps || []).forEach(s => syncStepMarker({ ...s, category: "weg" }));
+    routes = routes.filter(r => r.id !== route.id);
+    closeDetail();
+    status("Trace gelöscht.");
+  };
+
+  document.getElementById("addStepButton").onclick = async () => {
+    const created = await api("/api/routes/" + route.id + "/steps", {
+      method: "POST",
+      body: JSON.stringify({ media_type: "image", category: "weg" })
+    });
+    route.steps = route.steps || [];
+    route.steps.push({ id: created.id, route_id: route.id, position: created.position, media_type: "image", media_url: "", text_overlay: "", audio_url: "", transition: "cut", category: "weg", lng: null, lat: null });
+    renderTimeline(route);
+    renderRouteList();
+    status("Schritt hinzugefügt.");
+  };
+
+  renderTimeline(route);
+}
+
+document.getElementById("detailClose").addEventListener("click", closeDetail);
 
 /* ===== GPX IMPORT ===== */
 
@@ -861,7 +869,7 @@ document.getElementById("gpxInput").addEventListener("change", (event) => {
         if (!isNaN(lat) && !isNaN(lon)) coordinates.push([lon, lat]);
       }
 
-           if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
+      if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
 
       const cleanedCoordinates = simplifyGpxPoints(coordinates, 18);
       pendingGpx = { coordinates: cleanedCoordinates, filename: file.name.replace(/\.gpx$/i, "") };
@@ -896,7 +904,7 @@ document.getElementById("confirmGpx").addEventListener("click", async () => {
   const route = { ...newRoute, id: created.id, visible: 1, steps: [] };
   routes.push(route);
   drawRoute(route);
-  renderRoutes();
+  selectRoute(route.id);
   focusRoute(route);
 
   pendingGpx = null;
@@ -907,13 +915,12 @@ document.getElementById("confirmGpx").addEventListener("click", async () => {
 /* ===== INTRO TEXT ===== */
 
 async function loadIntro() {
-  const data = await fetch("/api/settings/intro").then(r => r.json());
+  const data = await api("/api/settings/intro");
   document.getElementById("introText").value = data.value;
 }
 document.getElementById("saveIntro").addEventListener("click", async () => {
-  await fetch("/api/settings/intro", {
+  await api("/api/settings/intro", {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ value: document.getElementById("introText").value })
   });
   status("Intro-Text gespeichert.");
@@ -931,7 +938,8 @@ async function loadData() {
     }));
     routes.forEach(drawRoute);
     routes.forEach(r => (r.steps || []).forEach(s => syncStepMarker(s)));
-    renderRoutes();
+    renderRouteList();
+    renderDetail();
     loadIntro();
     status("Karte bereit.");
   } catch (error) {
