@@ -42,8 +42,27 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .spider-entry:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
 .spider-entry img { width: 100%; border-radius: 4px; margin-bottom: 6px; display: block; cursor: pointer; }
 .spider-video { width: 100%; border-radius: 4px; margin-top: 8px; }
-.landing-thumb { width: calc(100% + 28px); margin: -14px -14px 10px -14px; display: block; border-radius: 3px 3px 0 0; }
-.landing-thumb img, .landing-thumb video { width: 100%; display: block; max-height: 110px; object-fit: cover; }
+/* ===== Runde Vorschau-Panels auf der Startseite ===== */
+.landing-panel {
+  position: absolute; width: 220px; height: 220px; border-radius: 50%;
+  overflow: hidden; pointer-events: all; cursor: pointer;
+  transform: translate(-50%, -50%);
+  background: #0c0c0c; box-shadow: 0 14px 40px rgba(0,0,0,.55);
+  border: 1px solid rgba(255,255,255,.14);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.landing-panel:hover { transform: translate(-50%, -50%) scale(1.045); box-shadow: 0 18px 50px rgba(0,0,0,.65); }
+.landing-panel-media { position: absolute; inset: 0; }
+.landing-panel-media img, .landing-panel-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.landing-panel-media-empty { background: var(--panel-color, #ff453a); opacity: .3; }
+.landing-panel-ring { position: absolute; inset: 0; pointer-events: none; }
+.landing-panel-ring text { fill: #fff; font-size: 8px; letter-spacing: 2.5px; text-transform: uppercase; opacity: .9; }
+.landing-panel-label {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 16px 28px;
+  text-align: center; font-size: 12px; color: #fff; pointer-events: none;
+  background: linear-gradient(to top, rgba(0,0,0,.75), transparent);
+  text-shadow: 0 2px 8px rgba(0,0,0,.8);
+}
 
 #closeAllPanels { position: absolute; top: 58px; right: 18px; z-index: 26; display: none; padding: 9px 14px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; cursor: pointer; }
 
@@ -122,13 +141,15 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .found-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; background: #222; cursor: pointer; }
 .found-item p { margin: 6px 0 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
 
-/* ===== Vintage-Video-Look: Korn, Scanlines, Vignette, Flackern ===== */
-#filmOverlay { position: fixed; inset: 0; z-index: 999; pointer-events: none; }
+/* ===== Vintage-Video-Look: Korn, Scanlines, Vignette, Flackern =====
+   Liegt bewusst NUR über der Karte (z-index knapp über #map), nicht über
+   Marquee/Panels/Story/Lightbox — Nutzer-Medien bleiben unangetastet. */
+#filmOverlay { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
 
 .film-grain {
   position: absolute; inset: -50%; width: 200%; height: 200%;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay; opacity: .35;
+  mix-blend-mode: overlay; opacity: .14;
   animation: grain-shift .4s steps(3) infinite;
 }
 @keyframes grain-shift {
@@ -141,12 +162,12 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .film-scanlines {
   position: absolute; inset: 0;
   background: repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0px, rgba(0,0,0,.22) 1px, transparent 1px, transparent 3px);
-  mix-blend-mode: multiply; opacity: .3;
+  mix-blend-mode: multiply; opacity: .12;
 }
 
 .film-vignette {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%);
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.32) 100%);
 }
 
 .film-flicker {
@@ -176,10 +197,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 </div>
 
 <div class="marquee-bar marquee-top">
-  <div class="marquee-track">
-    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
-    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
-  </div>
+  <div class="marquee-track" data-marquee-text="CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - "></div>
 </div>
 
 <div id="map"></div>
@@ -211,16 +229,49 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 </div>
 
 <div class="marquee-bar marquee-bottom">
-  <div class="marquee-track">
-    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
-    <span>CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - </span>
-  </div>
+  <div class="marquee-track" data-marquee-text="CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - "></div>
 </div>
 
 <script>
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
 const TYPE_LABELS = { lost_and_found: "Lost and Found", commission: "Commission", scan: "Scan" };
+
+/* ===== MARQUEE: genug Kopien für jede Fensterbreite, konstantes Tempo ===== */
+
+function setupMarquee(track) {
+  const text = track.dataset.marqueeText;
+  const speedPxPerSec = 55;
+
+  function build() {
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;";
+    probe.innerText = text;
+    document.body.appendChild(probe);
+    const singleWidth = probe.offsetWidth || 1;
+    probe.remove();
+
+    const copies = Math.max(2, Math.ceil((window.innerWidth + singleWidth) / singleWidth));
+    track.innerHTML = "";
+    for (let half = 0; half < 2; half++) {
+      for (let i = 0; i < copies; i++) {
+        const span = document.createElement("span");
+        span.innerText = text;
+        track.appendChild(span);
+      }
+    }
+    track.style.animationDuration = (singleWidth * copies / speedPxPerSec) + "s";
+  }
+
+  build();
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(build, 200);
+  });
+}
+
+document.querySelectorAll(".marquee-track").forEach(setupMarquee);
 
 const map = new mapboxgl.Map({
   container: "map",
@@ -515,61 +566,80 @@ async function loadIntro() {
   } catch (error) { console.error(error); }
 }
 
+const LANDING_PANEL_SIZE = 220;
+
+function buildLandingPanel(route) {
+  const el = document.createElement("div");
+  el.className = "landing-panel";
+  el.style.setProperty("--panel-color", route.color || "#ff453a");
+
+  const media = document.createElement("div");
+  media.className = "landing-panel-media";
+  if (route.video_url) {
+    if (isVideoUrl(route.video_url)) {
+      const video = document.createElement("video");
+      video.src = route.video_url;
+      video.muted = true; video.playsInline = true; video.loop = true; video.autoplay = true; video.preload = "metadata";
+      media.appendChild(video);
+    } else {
+      const img = document.createElement("img");
+      img.src = route.video_url;
+      media.appendChild(img);
+    }
+  } else {
+    media.classList.add("landing-panel-media-empty");
+  }
+  el.appendChild(media);
+
+  const ringId = "ring-" + route.id;
+  const ringSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  ringSvg.setAttribute("class", "landing-panel-ring");
+  ringSvg.setAttribute("viewBox", "0 0 220 220");
+  ringSvg.innerHTML =
+    '<defs><path id="' + ringId + '" d="M 110,110 m -96,0 a 96,96 0 1,1 192,0 a 96,96 0 1,1 -192,0"/></defs>' +
+    '<text><textPath href="#' + ringId + '" startOffset="0%">TO FOLLOW THIS TRACE · TO FOLLOW THIS TRACE · TO FOLLOW THIS TRACE · </textPath></text>';
+  el.appendChild(ringSvg);
+
+  const label = document.createElement("div");
+  label.className = "landing-panel-label";
+  label.innerText = route.name;
+  el.appendChild(label);
+
+  el.addEventListener("click", () => startFollowTrace(route));
+  return el;
+}
+
 function renderLandingPanels() {
   closeAllPanels();
   const total = routes.length;
   if (total === 0) return;
 
-  const radius = Math.max(220, (total * 260) / (Math.PI * 2));
+  const radius = Math.max(200, (total * (LANDING_PANEL_SIZE + 40)) / (Math.PI * 2));
   const currentZoom = map.getZoom();
   const margin = 40;
+  const half = LANDING_PANEL_SIZE / 2;
 
   panels = routes.map((route, index) => {
     const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
     const anchorLngLat = routeCentroid(route);
     const anchorScreen = map.project(anchorLngLat);
-    const routeColor = route.color || "#ff453a";
-    const panelHeight = route.video_url ? 250 : 150;
 
-    const el = document.createElement("div");
-    el.className = "spider-panel";
-    const inner = document.createElement("div");
-    inner.className = "spider-panel-inner";
-    el.appendChild(inner);
-
-    const thumbHtml = route.video_url
-      ? '<div class="landing-thumb">' + (isVideoUrl(route.video_url)
-          ? '<video src="' + route.video_url + '" muted playsinline preload="metadata"></video>'
-          : '<img src="' + route.video_url + '">') + '</div>'
-      : '';
-    inner.innerHTML =
-      thumbHtml +
-      '<h3 style="margin-top:' + (route.video_url ? '4px' : '0') + ';">' + escapeHtml(route.name) + '</h3>' +
-      '<button class="follow-landing-btn" style="width:100%;margin-top:14px;padding:7px 10px;border:0;border-radius:4px;background:#ffd400;color:#000;font-size:9px;cursor:pointer;">Follow this trace</button>';
-
+    const el = buildLandingPanel(route);
     spiderLayer.appendChild(el);
 
     let x = anchorScreen.x + Math.cos(angle) * radius;
     let y = anchorScreen.y + Math.sin(angle) * radius;
-    x = Math.max(margin + 115, Math.min(window.innerWidth - margin - 115, x));
-    y = Math.max(margin + panelHeight / 2, Math.min(window.innerHeight - margin - panelHeight / 2, y));
+    x = Math.max(margin + half, Math.min(window.innerWidth - margin - half, x));
+    y = Math.max(margin + half, Math.min(window.innerHeight - margin - half, y));
     el.style.left = x + "px"; el.style.top = y + "px";
 
-    const panel = {
-      el, anchorLngLat, routeColor, x, y,
+    return {
+      el, anchorLngLat, routeColor: route.color || "#ff453a", x, y,
       baseZoom: currentZoom,
       baseOffsetX: x - anchorScreen.x,
       baseOffsetY: y - anchorScreen.y,
-      baseWidth: 230, baseHeight: panelHeight
+      baseWidth: LANDING_PANEL_SIZE, baseHeight: LANDING_PANEL_SIZE
     };
-
-    inner.querySelector(".follow-landing-btn").addEventListener("click", (event) => {
-      event.stopPropagation();
-      startFollowTrace(route);
-    });
-
-    makeDraggable(panel);
-    return panel;
   });
 
   drawLines();

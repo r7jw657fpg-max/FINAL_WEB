@@ -817,6 +817,27 @@ document.getElementById("detailClose").addEventListener("click", closeDetail);
 /* ===== GPX IMPORT ===== */
 
 document.getElementById("gpxButton").addEventListener("click", () => document.getElementById("gpxInput").click());
+
+// Entfernt GPS-Zittern (kurzes Hin-und-Her durch ungenaue Fixes) per Median-Filter,
+// BEVOR vereinfacht wird. Ein Median ignoriert einzelne Ausreisser, ohne wie ein
+// Mittelwert von ihnen "mitgezogen" zu werden, und schneidet echte Richtungswechsel
+// nicht weg. simplifyGpxPoints() danach reduziert nur noch die Punktanzahl — gegen
+// Zittern allein hilft es nicht, weil es Punkte, die stark abweichen, gerade behält.
+function smoothGpxPoints(points, windowSize) {
+  const half = Math.floor(windowSize / 2);
+  function median(values) {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return points.map((_, i) => {
+    const start = Math.max(0, i - half);
+    const end = Math.min(points.length - 1, i + half);
+    const window = points.slice(start, end + 1);
+    return [median(window.map(p => p[0])), median(window.map(p => p[1]))];
+  });
+}
+
 function simplifyGpxPoints(points, toleranceMeters) {
   function haversineSimple(a, b) {
     const R = 6371000;
@@ -871,7 +892,7 @@ document.getElementById("gpxInput").addEventListener("change", (event) => {
 
       if (coordinates.length < 2) throw new Error("Keine GPX-Trackpunkte gefunden.");
 
-      const cleanedCoordinates = simplifyGpxPoints(coordinates, 18);
+      const cleanedCoordinates = simplifyGpxPoints(smoothGpxPoints(coordinates, 5), 18);
       pendingGpx = { coordinates: cleanedCoordinates, filename: file.name.replace(/\.gpx$/i, "") };
       document.getElementById("routeName").value = pendingGpx.filename;
       document.getElementById("dialog").classList.add("active");
