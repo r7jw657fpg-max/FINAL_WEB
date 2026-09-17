@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script src="/shared.js"></script>
 <style>
 * { box-sizing: border-box; }
@@ -212,7 +213,7 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/mapbox/dark-v11",
+  style: "mapbox://styles/leonroca/cmu5b7jcz003g01sagg39fgfx",
   center: [8.5417, 47.3769],
   zoom: 12
 });
@@ -272,7 +273,19 @@ map.on("click", (event) => {
   status("Position gesetzt.");
 });
 
+// iPhone-Fotos landen oft als HEIC/HEIF hoch — kein Browser stellt das per
+// <img>/<video> dar, darum hier vor dem Upload zu JPEG konvertieren.
+async function convertHeicIfNeeded(file) {
+  const isHeic = /\.hei[cf]$/i.test(file.name) || file.type === "image/heic" || file.type === "image/heif";
+  if (!isHeic) return file;
+  status("HEIC-Foto wird konvertiert...");
+  const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+  return new File([jpegBlob], file.name.replace(/\.hei[cf]$/i, ".jpg"), { type: "image/jpeg" });
+}
+
 async function uploadFile(file) {
+  file = await convertHeicIfNeeded(file);
   const urlResponse = await fetch("/api/upload-url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

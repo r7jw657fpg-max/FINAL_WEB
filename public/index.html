@@ -61,12 +61,6 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .landing-panel-media-empty { background: var(--panel-color, #ff453a); opacity: .3; }
 .landing-panel-ring { position: absolute; inset: 0; pointer-events: none; }
 .landing-panel-ring text { fill: #fff; font-size: 8.5px; letter-spacing: 2.5px; text-transform: uppercase; opacity: .95; }
-.landing-panel-label {
-  position: absolute; left: 0; right: 0; bottom: 8px;
-  text-align: center; font-size: 10px; letter-spacing: .03em; color: #fff; pointer-events: none;
-  text-shadow: 0 1px 5px rgba(0,0,0,.7);
-  padding: 0 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-}
 
 #closeAllPanels { position: absolute; top: 58px; right: 18px; z-index: 26; display: none; padding: 9px 14px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; cursor: pointer; }
 
@@ -76,23 +70,15 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 #lightboxClose { position: absolute; top: 20px; right: 26px; background: none; border: 0; color: white; font-size: 34px; cursor: pointer; opacity: .8; }
 #lightboxClose:hover { opacity: 1; }
 
-/* Grösseres, wirklich scrollbares Intro-Feld; ein unsichtbarer, per
-   shape-outside geformter Kreis lässt den Text rechts der Kontur der
-   Globus-Ansicht folgen (halbmondförmig statt hartem rechten Rand). */
+/* Grösseres, wirklich scrollbares Intro-Feld, aber bewusst auf eine Ecke
+   begrenzt (nicht mehr fast bildschirmhoch), damit die Karte ausserhalb
+   davon weiterhin frei gezogen werden kann. */
 #landingIntro {
-  position: absolute; top: 60px; left: 20px; right: 0; bottom: 90px;
-  overflow-y: auto; overflow-x: hidden;
-  color: #fff; font-size: 16px; line-height: 1.85; background: transparent;
-  padding: 26px 30px 26px 4px; z-index: 26;
+  position: absolute; top: 60px; left: 20px; width: 420px; max-height: 65vh; overflow-y: auto;
+  color: #fff; font-size: 16px; line-height: 1.8; background: transparent;
+  padding: 24px; z-index: 26; white-space: pre-wrap;
   text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 20px rgba(0,0,0,.6);
 }
-#landingIntroShape {
-  float: right;
-  width: 72vh; height: 72vh; margin-top: 4vh;
-  shape-outside: circle(50%);
-  shape-margin: 28px;
-}
-#landingIntroText { white-space: pre-wrap; }
 
 #statsOverlay {
   position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: flex-start;
@@ -228,7 +214,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 <div id="spiderLayer"></div>
 <button id="closeAllPanels">Alle Panels schließen</button>
 
-<div id="landingIntro"><div id="landingIntroShape"></div><div id="landingIntroText"></div></div>
+<div id="landingIntro"></div>
 <div id="liveStats"></div>
 
 <div id="statsOverlay"></div>
@@ -298,7 +284,7 @@ document.querySelectorAll(".marquee-track").forEach(setupMarquee);
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/mapbox/dark-v11",
+  style: "mapbox://styles/leonroca/cmu5b7jcz003g01sagg39fgfx",
   center: [8.5417, 47.3769],
   zoom: 1.3,
   projection: "globe"
@@ -314,7 +300,6 @@ const closeAllButton = document.getElementById("closeAllPanels");
 const lightbox = document.getElementById("lightbox");
 const lightboxContent = document.getElementById("lightboxContent");
 const landingIntro = document.getElementById("landingIntro");
-const landingIntroText = document.getElementById("landingIntroText");
 const statsOverlay = document.getElementById("statsOverlay");
 const liveStatsEl = document.getElementById("liveStats");
 const storyPanelsWrap = document.getElementById("storyPanelsWrap");
@@ -594,7 +579,7 @@ map.on("move", () => {
 async function loadIntro() {
   try {
     const data = await api("/api/settings/intro");
-    landingIntroText.innerText = data.value || "";
+    landingIntro.innerText = data.value || "";
   } catch (error) { console.error(error); }
 }
 
@@ -623,22 +608,16 @@ function buildLandingPanel(route) {
   }
   el.appendChild(media);
 
-  // Ring-Text läuft nur über die obere Hälfte (Weg über den Scheitel), damit er
-  // nie auf dem Kopf steht wie bei einem vollen Kreis; sitzt im Rand außerhalb
-  // des Bildkreises (inset 34px), nicht auf dem Foto.
+  // Voller Ring-Text als Rahmen um das Bild, sitzt im Rand außerhalb des
+  // Bildkreises (inset 34px), nicht auf dem Foto.
   const ringId = "ring-" + route.id;
   const ringSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   ringSvg.setAttribute("class", "landing-panel-ring");
   ringSvg.setAttribute("viewBox", "0 0 240 240");
   ringSvg.innerHTML =
-    '<defs><path id="' + ringId + '" d="M 17,120 A 103,103 0 0,1 223,120"/></defs>' +
-    '<text text-anchor="middle"><textPath href="#' + ringId + '" startOffset="50%">TO FOLLOW THIS TRACE</textPath></text>';
+    '<defs><path id="' + ringId + '" d="M 120,120 m -103,0 a 103,103 0 1,1 206,0 a 103,103 0 1,1 -206,0"/></defs>' +
+    '<text><textPath href="#' + ringId + '" startOffset="0%">TO FOLLOW THIS TRACE · TO FOLLOW THIS TRACE · </textPath></text>';
   el.appendChild(ringSvg);
-
-  const label = document.createElement("div");
-  label.className = "landing-panel-label";
-  label.innerText = route.name;
-  el.appendChild(label);
 
   el.addEventListener("click", () => startFollowTrace(route));
   return el;
@@ -1025,7 +1004,8 @@ async function startFollowTrace(route) {
   const statsText =
     route.name + "\n\n" +
     "Dauer: " + (route.duration_minutes ? route.duration_minutes + " min" : "–") + "\n" +
-    "Distanz: " + (route.distance_km ? route.distance_km + " km" : "–");
+    "Distanz: " + (route.distance_km ? route.distance_km + " km" : "–") +
+    (route.notes ? "\n\n" + route.notes : "");
 
   await Promise.all([
     typewriterInto(statsOverlay, statsText, 55),
