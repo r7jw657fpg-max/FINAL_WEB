@@ -160,6 +160,53 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .found-item img { width: 100%; height: auto; display: block; border-radius: 6px; background: #222; cursor: pointer; }
 .found-item p { margin: 6px 0 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
 
+/* ===== Look Builder: über alle Traces hinweg gesammelte Fundstücke
+   zu einem Look stapeln (Hut → Oberteil → Hose → Schuh) ===== */
+#lookBuilderToggle {
+  position: fixed; right: 18px; bottom: 58px; z-index: 55;
+  padding: 10px 16px; border: 1px solid rgba(255,255,255,.3); border-radius: 30px;
+  background: rgba(12,12,12,.85); color: #fff; font-size: 11px; letter-spacing: .05em;
+  text-transform: uppercase; cursor: pointer;
+}
+#lookBuilderToggle:hover { background: rgba(12,12,12,.97); }
+#lookBuilderToggle #lookBuilderCount {
+  display: inline-block; margin-left: 6px; min-width: 16px; padding: 1px 5px;
+  border-radius: 20px; background: #fff; color: #000; font-size: 10px; font-weight: 700;
+}
+
+#lookBuilderPanel {
+  position: fixed; right: 18px; bottom: 106px; z-index: 55;
+  width: 230px; max-height: 62vh; overflow-y: auto;
+  background: rgba(12,12,12,.96); border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
+  padding: 18px; color: #fff;
+  opacity: 0; transform: translateY(12px); visibility: hidden;
+  transition: opacity .3s ease, transform .3s ease, visibility 0s linear .3s;
+}
+#lookBuilderPanel.active {
+  opacity: 1; transform: translateY(0); visibility: visible;
+  transition: opacity .3s ease, transform .3s ease, visibility 0s linear 0s;
+}
+.look-builder-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.look-builder-title { margin-top: 3px; font-size: 17px; }
+#lookBuilderClose { background: none; border: 0; color: #fff; font-size: 18px; cursor: pointer; opacity: .6; }
+#lookBuilderClose:hover { opacity: 1; }
+
+.look-category-block { margin-bottom: 16px; }
+.look-category-block:last-child { margin-bottom: 0; }
+.look-category-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; opacity: .5; margin-bottom: 6px; }
+.look-slot-preview {
+  height: 90px; border: 1px dashed rgba(255,255,255,.22); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; background: rgba(255,255,255,.03);
+}
+.look-slot-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.look-slot-preview.empty .look-slot-hint { font-size: 9px; opacity: .4; text-align: center; padding: 0 10px; }
+.look-thumbs { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; }
+.look-thumb {
+  width: 34px; height: 34px; flex-shrink: 0; object-fit: contain; background: rgba(255,255,255,.04);
+  border-radius: 4px; border: 1px solid rgba(255,255,255,.15); cursor: pointer; opacity: .6;
+}
+.look-thumb.selected { opacity: 1; border-color: #fff; }
+
 /* ===== Vintage-Video-Look: Korn, Scanlines, Vignette, Flackern =====
    Liegt bewusst NUR über der Karte (z-index knapp über #map), nicht über
    Marquee/Panels/Story/Lightbox — Nutzer-Medien bleiben unangetastet. */
@@ -276,6 +323,18 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 <div id="lightbox">
   <button id="lightboxClose">×</button>
   <div id="lightboxContent"></div>
+</div>
+
+<button id="lookBuilderToggle">Look Builder <span id="lookBuilderCount">0</span></button>
+<div id="lookBuilderPanel">
+  <div class="look-builder-header">
+    <div>
+      <div class="kicker">DEIN LOOK</div>
+      <div class="look-builder-title">Look Builder</div>
+    </div>
+    <button id="lookBuilderClose">×</button>
+  </div>
+  <div id="lookStage" class="look-stage"></div>
 </div>
 
 <div class="marquee-bar marquee-bottom">
@@ -944,6 +1003,7 @@ async function loadStepItems(step) {
   try {
     const items = await api("/api/steps/" + step.id + "/items");
     if (!items.length) return;
+    items.forEach(registerLookItem);
     const emptyHint = foundItemsList.querySelector(".hint");
     if (emptyHint) emptyHint.remove();
         items.forEach(item => {
@@ -1094,6 +1154,88 @@ storyCloseButton.addEventListener("click", () => {
   statsOverlay.classList.remove("active");
   revokePreloadedBlobs();
 });
+
+/* ===== LOOK BUILDER =====
+   Sammelt entdeckte Lost&Found-Kleidungsstücke (mit Kategorie) über den
+   ganzen Besuch hinweg und lässt daraus einen Look zusammenstellen. */
+const LOOK_CATEGORIES = [
+  { key: "hut", label: "Hut" },
+  { key: "oberteil", label: "Oberteil" },
+  { key: "hose", label: "Hose" },
+  { key: "schuh", label: "Schuh" }
+];
+
+let discoveredLookItems = [];
+let selectedLookItems = {};
+
+const lookBuilderToggle = document.getElementById("lookBuilderToggle");
+const lookBuilderCount = document.getElementById("lookBuilderCount");
+const lookBuilderPanel = document.getElementById("lookBuilderPanel");
+const lookStage = document.getElementById("lookStage");
+
+function registerLookItem(item) {
+  if (!item.category || !LOOK_CATEGORIES.some(c => c.key === item.category)) return;
+  if (!item.image_url && !item.cutout_url) return;
+  if (discoveredLookItems.some(i => i.id === item.id)) return;
+  discoveredLookItems.push(item);
+  lookBuilderCount.innerText = discoveredLookItems.length;
+  renderLookBuilder();
+}
+
+function renderLookBuilder() {
+  lookStage.innerHTML = "";
+  LOOK_CATEGORIES.forEach(cat => {
+    const block = document.createElement("div");
+    block.className = "look-category-block";
+
+    const label = document.createElement("div");
+    label.className = "look-category-label";
+    label.innerText = cat.label;
+    block.appendChild(label);
+
+    const itemsForCat = discoveredLookItems.filter(i => i.category === cat.key);
+    const selectedId = selectedLookItems[cat.key];
+    const selectedItem = itemsForCat.find(i => i.id === selectedId);
+
+    const preview = document.createElement("div");
+    preview.className = "look-slot-preview" + (selectedItem ? "" : " empty");
+    if (selectedItem) {
+      const img = document.createElement("img");
+      img.src = selectedItem.cutout_url || selectedItem.image_url;
+      preview.appendChild(img);
+    } else {
+      const hint = document.createElement("span");
+      hint.className = "look-slot-hint";
+      hint.innerText = itemsForCat.length ? "auswählen ↓" : "noch nichts gefunden";
+      preview.appendChild(hint);
+    }
+    block.appendChild(preview);
+
+    if (itemsForCat.length > 0) {
+      const thumbs = document.createElement("div");
+      thumbs.className = "look-thumbs";
+      itemsForCat.forEach(item => {
+        const thumb = document.createElement("img");
+        thumb.className = "look-thumb" + (item.id === selectedId ? " selected" : "");
+        thumb.src = item.cutout_url || item.image_url;
+        thumb.title = item.note || cat.label;
+        thumb.addEventListener("click", () => {
+          selectedLookItems[cat.key] = (selectedLookItems[cat.key] === item.id) ? null : item.id;
+          renderLookBuilder();
+        });
+        thumbs.appendChild(thumb);
+      });
+      block.appendChild(thumbs);
+    }
+
+    lookStage.appendChild(block);
+  });
+}
+
+lookBuilderToggle.addEventListener("click", () => lookBuilderPanel.classList.toggle("active"));
+document.getElementById("lookBuilderClose").addEventListener("click", () => lookBuilderPanel.classList.remove("active"));
+
+renderLookBuilder();
 
 async function loadData() {
   try {

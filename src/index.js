@@ -345,8 +345,8 @@ export default {
         const body = await request.json();
         const itemId = newId("item");
         await env.DB.prepare(
-          "INSERT INTO step_items (id, step_id, image_url, note, created_at) VALUES (?, ?, ?, ?, ?)"
-        ).bind(itemId, stepId, body.image_url || "", body.note || "", new Date().toISOString()).run();
+          "INSERT INTO step_items (id, step_id, image_url, note, created_at, category, cutout_url) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        ).bind(itemId, stepId, body.image_url || "", body.note || "", new Date().toISOString(), body.category || "", body.cutout_url || "").run();
         return json({ id: itemId }, 201);
       }
       return methodNotAllowed();
@@ -364,8 +364,8 @@ export default {
         const authError = requireAdmin(request, env);
         if (authError) return authError;
         const body = await request.json();
-        await env.DB.prepare("UPDATE step_items SET image_url=?, note=? WHERE id=?")
-          .bind(body.image_url || "", body.note || "", itemId).run();
+        await env.DB.prepare("UPDATE step_items SET image_url=?, note=?, category=?, cutout_url=? WHERE id=?")
+          .bind(body.image_url || "", body.note || "", body.category || "", body.cutout_url || "", itemId).run();
         return json({ ok: true });
       }
       return methodNotAllowed();
