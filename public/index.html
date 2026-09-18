@@ -77,7 +77,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
    begrenzt (nicht mehr fast bildschirmhoch), damit die Karte ausserhalb
    davon weiterhin frei gezogen werden kann. */
 #landingIntro {
-  position: absolute; top: 60px; left: 20px; width: 420px; max-height: 65vh; overflow-y: auto;
+  position: absolute; top: 60px; left: 20px; width: clamp(280px, 38vw, 420px); max-height: 65vh; overflow-y: auto;
   color: #fff; font-weight: 300; font-size: 16px; line-height: 1.8; background: transparent;
   padding: 24px; z-index: 26; white-space: pre-wrap;
   text-shadow: 0 0 4px rgba(0,0,0,.9), 0 2px 14px rgba(0,0,0,.85), 0 0 34px rgba(0,0,0,.7);
@@ -92,8 +92,10 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 }
 #statsOverlay.active { display: flex; }
 
+/* Unten links statt oben links, damit es nicht mit dem Typewriter-Text
+   (#storyStepText, oben links) kollidiert. */
 #liveStats {
-  position: absolute; top: 60px; left: 20px; z-index: 26;
+  position: fixed; bottom: 100px; left: 20px; z-index: 26;
   background: rgba(12,12,12,.85); color: #fff; padding: 12px 16px;
   border-radius: 6px; font-family: monospace; font-size: 12px; display: none;
 }
@@ -132,10 +134,16 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   color: #fff; font-size: 13px; background: rgba(0,0,0,.6); padding: 10px 16px;
   border-radius: 4px; pointer-events: none;
 }
-.story-overlay-text {
-  position: absolute; bottom: 56px; left: 0; right: 0; text-align: center;
-  color: #fff; font-size: 14px; padding: 0 30px; text-shadow: 0 2px 8px rgba(0,0,0,.8);
+/* Text-Overlay eines Schritts läuft als Typewriter links über der Karte,
+   nicht mehr als Text auf dem Medium selbst. */
+#storyStepText {
+  position: fixed; top: 60px; left: 20px; width: clamp(260px, 32vw, 380px); max-height: 60vh;
+  overflow-y: auto; z-index: 26; pointer-events: none;
+  color: #fff; font-weight: 300; font-size: 17px; line-height: 1.7; white-space: pre-wrap;
+  text-shadow: 0 0 4px rgba(0,0,0,.9), 0 2px 14px rgba(0,0,0,.85), 0 0 34px rgba(0,0,0,.7);
+  opacity: 0; transition: opacity .4s ease;
 }
+#storyStepText.active { opacity: 1; }
 #storyNextButton {
   position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
   padding: 10px 20px; border: 0; border-radius: 4px; background: #ffd400; color: #000;
@@ -161,7 +169,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 /* ===== Look Builder: über alle Traces hinweg gesammelte Fundstücke
    zu einem Look stapeln (Hut → Oberteil → Hose → Schuh) ===== */
 #lookBuilderToggle {
-  position: fixed; right: 18px; bottom: 58px; z-index: 55;
+  position: fixed; left: 18px; bottom: 58px; z-index: 55;
   padding: 10px 16px; border: 1px solid rgba(255,255,255,.3); border-radius: 30px;
   background: rgba(12,12,12,.85); color: #fff; font-size: 11px; letter-spacing: .05em;
   text-transform: uppercase; cursor: pointer;
@@ -173,8 +181,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 }
 
 #lookBuilderPanel {
-  position: fixed; right: 18px; bottom: 106px; z-index: 55;
-  width: 230px; max-height: 62vh; overflow-y: auto;
+  position: fixed; left: 18px; bottom: 106px; z-index: 55;
+  width: clamp(190px, 26vw, 230px); max-height: 62vh; overflow-y: auto;
   background: rgba(12,12,12,.96); border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
   padding: 18px; color: #fff;
   opacity: 0; transform: translateY(12px); visibility: hidden;
@@ -301,6 +309,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 <button id="closeAllPanels">Alle Panels schließen</button>
 
 <div id="landingIntro"></div>
+<div id="storyStepText"></div>
 <div id="liveStats"></div>
 
 <div id="statsOverlay"></div>
@@ -397,6 +406,7 @@ const lightboxContent = document.getElementById("lightboxContent");
 const landingIntro = document.getElementById("landingIntro");
 const statsOverlay = document.getElementById("statsOverlay");
 const liveStatsEl = document.getElementById("liveStats");
+const storyStepText = document.getElementById("storyStepText");
 const storyPanelsWrap = document.getElementById("storyPanelsWrap");
 const storyMediaPanel = document.getElementById("storyMediaPanel");
 const storyLayerA = document.getElementById("storyLayerA");
@@ -775,7 +785,7 @@ async function animateFootstep(route, fromLngLat, toLngLat, durationMs) {
     const t = Math.max(0, Math.min(1, (now - start) / durationMs));
     const pos = interpolateAlong(segment, t);
     footstepMarker.setLngLat(pos);
-    map.jumpTo({ center: pos, zoom: 20, padding: cameraPadding() });
+    map.jumpTo({ center: pos, zoom: 17.5, padding: cameraPadding() });
     const currentMeters = fromMeters + (toMeters - fromMeters) * t;
     liveStatsEl.innerText = "Zurückgelegt: " + (currentMeters / 1000).toFixed(2) + " km";
     liveStatsEl.classList.add("active");
@@ -811,6 +821,20 @@ function typewriterInto(el, text, speed) {
   });
 }
 
+let stepTypewriterTimer = null;
+function typewriterStepText(text, speed) {
+  if (stepTypewriterTimer) { clearInterval(stepTypewriterTimer); stepTypewriterTimer = null; }
+  if (!text) { storyStepText.classList.remove("active"); storyStepText.innerText = ""; return; }
+  storyStepText.innerText = "";
+  storyStepText.classList.add("active");
+  let i = 0;
+  stepTypewriterTimer = setInterval(() => {
+    storyStepText.innerText += text[i];
+    i++;
+    if (i >= text.length) { clearInterval(stepTypewriterTimer); stepTypewriterTimer = null; }
+  }, speed);
+}
+
 let preloadedBlobs = {};
 
 function revokePreloadedBlobs() {
@@ -830,10 +854,12 @@ async function preloadUrl(key, url) {
 }
 
 async function preloadOneStep(step) {
-  await Promise.all([
-    preloadUrl(step.id + ":media", step.media_url),
-    preloadUrl(step.id + ":audio", step.audio_url)
-  ]);
+  // 3D-Modelle NICHT vorab als Blob laden: model-viewer streamt/parst grosse
+  // .glb-Dateien selbst effizienter, als erst komplett auf einen Blob zu
+  // warten — das war vermutlich der Grund, warum Modelle lange nicht auf
+  // Mausbewegung reagiert haben.
+  if (step.media_type === "model") return;
+  await preloadUrl(step.id + ":media", step.media_url);
 }
 
 async function preloadStepsMedia(steps) {
@@ -854,7 +880,6 @@ function buildStepElement(step) {
   let video = null;
 
   const mediaSrc = preloadedBlobs[step.id + ":media"] || step.media_url;
-  const audioSrc = preloadedBlobs[step.id + ":audio"] || step.audio_url;
 
   if (step.media_type === "video") {
     video = document.createElement("video");
@@ -880,27 +905,12 @@ function buildStepElement(step) {
     }
   }
 
-  if (step.text_overlay) {
-    const text = document.createElement("div");
-    text.className = "story-overlay-text";
-    text.innerText = step.text_overlay;
-    wrap.appendChild(text);
-  }
-
-  if (step.audio_url) {
-    const audio = document.createElement("audio");
-    audio.src = audioSrc;
-    audio.autoplay = true;
-    wrap.appendChild(audio);
-  }
-
   return { wrap, video };
 }
 
 function crossfade(oldLayer, newLayer, durationMs) {
   newLayer.style.opacity = "0";
   const oldVideo = oldLayer.querySelector("video");
-  const oldAudio = oldLayer.querySelector("audio");
   const startTime = performance.now();
 
   function step(now) {
@@ -909,7 +919,6 @@ function crossfade(oldLayer, newLayer, durationMs) {
     oldLayer.style.opacity = String(Math.max(0, Math.min(1, 1 - t)));
     newLayer.style.opacity = String(t);
     if (oldVideo) oldVideo.volume = Math.max(0, Math.min(1, 1 - t));
-    if (oldAudio) oldAudio.volume = Math.max(0, Math.min(1, 1 - t));
     if (t < 1) {
       requestAnimationFrame(step);
     } else {
@@ -953,6 +962,7 @@ function playStory(steps, index, route) {
     storyLayerA.innerHTML = ""; storyLayerB.innerHTML = "";
     storyLayerA.style.opacity = "0"; storyLayerB.style.opacity = "0";
     liveStatsEl.classList.remove("active");
+    typewriterStepText(null);
     revokePreloadedBlobs();
     openTracePanels(route);
     return;
@@ -980,7 +990,10 @@ function playStory(steps, index, route) {
     if (started) return;
     started = true;
 
-    const useFade = index === 0 || (prevStep && prevStep.transition === "fade");
+    // Nach einem Video kommt immer eine Filmblende, sonst ein harter Schnitt
+    // mit "Weiter"-Button — automatisch aus dem Medientyp abgeleitet statt
+    // manuell pro Schritt eingestellt.
+    const useFade = index === 0 || (prevStep && prevStep.media_type === "video");
 
     if (index === 0) {
       void nextLayer.offsetWidth;
@@ -995,6 +1008,8 @@ function playStory(steps, index, route) {
       activeLayer.innerHTML = "";
       nextLayer.style.opacity = "1";
     }
+
+    typewriterStepText(step.text_overlay, 45);
 
            if (target) {
       animateFootstep(route, lastCameraTarget, target, durationMs);
@@ -1047,7 +1062,7 @@ async function startFollowTrace(route) {
   const flyToDone = new Promise(resolve => map.once("moveend", resolve));
   activeFlyTo = flyToDone;
   flyToDone.then(() => { if (activeFlyTo === flyToDone) activeFlyTo = null; });
-  map.flyTo({ center: startCoord, zoom: 20, duration: flyDuration, essential: true });
+  map.flyTo({ center: startCoord, zoom: 17.5, duration: flyDuration, essential: true });
 
   const statsText =
     route.name + "\n\n" +
@@ -1077,6 +1092,7 @@ storyCloseButton.addEventListener("click", () => {
   storyLayerA.style.opacity = "0"; storyLayerB.style.opacity = "0";
   liveStatsEl.classList.remove("active");
   statsOverlay.classList.remove("active");
+  typewriterStepText(null);
   revokePreloadedBlobs();
 });
 

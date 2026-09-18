@@ -109,10 +109,14 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 .timeline-number {
   width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; background: var(--step-color);
   color: #000; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  cursor: grab;
 }
+.timeline-number:active { cursor: grabbing; }
 .timeline-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
 .timeline-body { display: none; padding: 12px; border-top: 1px solid rgba(255,255,255,.1); }
 .timeline-step.open .timeline-body { display: block; }
+.timeline-step.dragging { opacity: .35; }
+.timeline-step.drag-over .timeline-card { border-color: #ffd400; }
 </style>
 </head>
 <body>
@@ -514,6 +518,8 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   const number = document.createElement("div");
   number.className = "timeline-number";
   number.innerText = index + 1;
+  number.title = "Ziehen zum Umsortieren";
+  number.draggable = true;
   const nameWrap = document.createElement("div");
   nameWrap.className = "timeline-name";
   nameWrap.innerText = stepLabel();
@@ -567,22 +573,6 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   textInput.value = step.text_overlay || "";
   textLabel.appendChild(textInput);
 
-  const audioLabel = document.createElement("label");
-  audioLabel.innerText = "Sprachnotiz (optional)";
-  const audioUrlInput = document.createElement("input");
-  audioUrlInput.type = "text"; audioUrlInput.placeholder = "https://..."; audioUrlInput.value = step.audio_url || "";
-  const audioUpload = document.createElement("input");
-  audioUpload.type = "file"; audioUpload.accept = "audio/*";
-  audioLabel.append(audioUrlInput, audioUpload);
-
-  const transitionLabel = document.createElement("label");
-  transitionLabel.innerText = "Blende zum nächsten Schritt";
-  const transitionSelect = document.createElement("select");
-  transitionSelect.innerHTML =
-    '<option value="cut"' + (step.transition === "cut" ? " selected" : "") + '>Direkt (kein Übergang)</option>' +
-    '<option value="fade"' + (step.transition === "fade" ? " selected" : "") + '>Filmblende (Überblendung)</option>';
-  transitionLabel.appendChild(transitionSelect);
-
   const itemsBoxWrap = buildItemsBox(step);
 
   const actions = document.createElement("div");
@@ -595,7 +585,7 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   del.innerText = "Löschen"; del.className = "delete";
   actions.append(up, down, del);
 
-  body.append(typeLabel, categoryLabel, positionBox, mediaLabel, textLabel, audioLabel, transitionLabel, itemsBoxWrap.el, actions);
+  body.append(typeLabel, categoryLabel, positionBox, mediaLabel, textLabel, itemsBoxWrap.el, actions);
   card.appendChild(body);
   wrap.appendChild(card);
 
@@ -630,8 +620,6 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   });
   mediaUrlInput.addEventListener("change", () => { step.media_url = mediaUrlInput.value; persist(); });
   textInput.addEventListener("change", () => { step.text_overlay = textInput.value; persist(); });
-  audioUrlInput.addEventListener("change", () => { step.audio_url = audioUrlInput.value; persist(); });
-  transitionSelect.addEventListener("change", () => { step.transition = transitionSelect.value; persist(); });
 
   placeButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -656,22 +644,6 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
       mediaUrlInput.value = uploaded.url;
       await persist();
       status("Medium hochgeladen.");
-    } catch (error) {
-      console.error(error);
-      status("Upload fehlgeschlagen.");
-    }
-  });
-
-  audioUpload.addEventListener("change", async () => {
-    const file = audioUpload.files[0];
-    if (!file) return;
-    status("Sprachnotiz wird hochgeladen...");
-    try {
-      const uploaded = await uploadFile(file);
-      step.audio_url = uploaded.url;
-      audioUrlInput.value = uploaded.url;
-      await persist();
-      status("Sprachnotiz hochgeladen.");
     } catch (error) {
       console.error(error);
       status("Upload fehlgeschlagen.");
@@ -719,8 +691,51 @@ function renderTimeline(route) {
     renderRouteList();
   }
 
+  // Per Drag-Handle (die Nummer) an eine beliebige Position ziehen, statt
+  // sich mit ↑/↓ Schritt für Schritt durchzuklicken.
+  async function moveStepToIndex(stepId, newIndex) {
+    const idx = route.steps.findIndex(s => s.id === stepId);
+    if (idx < 0) return;
+    const clamped = Math.max(0, Math.min(route.steps.length - 1, newIndex));
+    if (clamped === idx) return;
+    const [moved] = route.steps.splice(idx, 1);
+    route.steps.splice(clamped, 0, moved);
+    const order = route.steps.map((s, i) => ({ id: s.id, position: i }));
+    await api("/api/steps/reorder", { method: "POST", body: JSON.stringify({ order }) });
+    renderTimeline(route);
+  }
+
+  let dragStepId = null;
+
   route.steps.forEach((step, index) => {
-    timelineEl.appendChild(buildTimelineStep(step, index, route.steps.length, moveStep, deleteStep));
+    const stepEl = buildTimelineStep(step, index, route.steps.length, moveStep, deleteStep);
+    const handle = stepEl.querySelector(".timeline-number");
+
+    handle.addEventListener("dragstart", (event) => {
+      dragStepId = step.id;
+      event.dataTransfer.effectAllowed = "move";
+      stepEl.classList.add("dragging");
+    });
+    handle.addEventListener("dragend", () => {
+      stepEl.classList.remove("dragging");
+      dragStepId = null;
+    });
+    stepEl.addEventListener("dragover", (event) => {
+      if (!dragStepId) return;
+      event.preventDefault();
+      stepEl.classList.add("drag-over");
+    });
+    stepEl.addEventListener("dragleave", () => stepEl.classList.remove("drag-over"));
+    stepEl.addEventListener("drop", (event) => {
+      event.preventDefault();
+      stepEl.classList.remove("drag-over");
+      if (dragStepId && dragStepId !== step.id) {
+        const targetIndex = route.steps.findIndex(s => s.id === step.id);
+        moveStepToIndex(dragStepId, targetIndex);
+      }
+    });
+
+    timelineEl.appendChild(stepEl);
   });
 }
 
