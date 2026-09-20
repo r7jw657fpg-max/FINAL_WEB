@@ -7,6 +7,16 @@
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script src="/shared.js"></script>
+<!-- @imgly/background-removal importiert intern "onnxruntime-web" als
+     bare specifier — ohne Bundler kann der Browser das nicht auflösen,
+     darum hier per Import-Map explizit auf die CDN-Datei zeigen. -->
+<script type="importmap">
+{
+  "imports": {
+    "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.bundle.min.mjs"
+  }
+}
+</script>
 <script type="module">
   import { removeBackground } from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.mjs";
   window.imglyRemoveBackground = removeBackground;
