@@ -13,7 +13,7 @@
 </script>
 <style>
 * { box-sizing: border-box; }
-html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 300; }
 #map { position: absolute; inset: 0; }
 
 .panel {
@@ -115,7 +115,7 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 .timeline-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
 .timeline-body { display: none; padding: 12px; border-top: 1px solid rgba(255,255,255,.1); }
 .timeline-step.open .timeline-body { display: block; }
-.timeline-step.dragging { opacity: .35; }
+.timeline-step.dragging { opacity: .85; z-index: 5; cursor: grabbing; }
 .timeline-step.drag-over .timeline-card { border-color: #ffd400; }
 </style>
 </head>
@@ -519,7 +519,6 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   number.className = "timeline-number";
   number.innerText = index + 1;
   number.title = "Ziehen zum Umsortieren";
-  number.draggable = true;
   const nameWrap = document.createElement("div");
   nameWrap.className = "timeline-name";
   nameWrap.innerText = stepLabel();
@@ -705,34 +704,57 @@ function renderTimeline(route) {
     renderTimeline(route);
   }
 
-  let dragStepId = null;
-
+  // Pointer-Events statt nativem HTML5-Drag: zuverlässiger über Browser und
+  // Touch hinweg (dieselbe Technik wie beim Verschieben der Karten-Panels).
   route.steps.forEach((step, index) => {
     const stepEl = buildTimelineStep(step, index, route.steps.length, moveStep, deleteStep);
     const handle = stepEl.querySelector(".timeline-number");
+    handle.style.touchAction = "none";
 
-    handle.addEventListener("dragstart", (event) => {
-      dragStepId = step.id;
-      event.dataTransfer.effectAllowed = "move";
+    let dragging = false;
+    let startY = 0;
+
+    handle.addEventListener("pointerdown", (event) => {
+      dragging = true;
+      startY = event.clientY;
       stepEl.classList.add("dragging");
+      handle.setPointerCapture(event.pointerId);
     });
-    handle.addEventListener("dragend", () => {
-      stepEl.classList.remove("dragging");
-      dragStepId = null;
-    });
-    stepEl.addEventListener("dragover", (event) => {
-      if (!dragStepId) return;
-      event.preventDefault();
-      stepEl.classList.add("drag-over");
-    });
-    stepEl.addEventListener("dragleave", () => stepEl.classList.remove("drag-over"));
-    stepEl.addEventListener("drop", (event) => {
-      event.preventDefault();
-      stepEl.classList.remove("drag-over");
-      if (dragStepId && dragStepId !== step.id) {
-        const targetIndex = route.steps.findIndex(s => s.id === step.id);
-        moveStepToIndex(dragStepId, targetIndex);
+
+    handle.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      const deltaY = event.clientY - startY;
+      stepEl.style.transform = "translateY(" + deltaY + "px)";
+
+      const currentRect = stepEl.getBoundingClientRect();
+      const currentCenterY = currentRect.top + currentRect.height / 2;
+      let hoverTarget = null;
+      for (const sib of timelineEl.children) {
+        sib.classList.remove("drag-over");
+        if (sib === stepEl) continue;
+        const rect = sib.getBoundingClientRect();
+        if (currentCenterY > rect.top && currentCenterY < rect.bottom) hoverTarget = sib;
       }
+      if (hoverTarget) hoverTarget.classList.add("drag-over");
+    });
+
+    handle.addEventListener("pointerup", () => {
+      if (!dragging) return;
+      dragging = false;
+      stepEl.style.transform = "";
+      stepEl.classList.remove("dragging");
+      const overEl = timelineEl.querySelector(".drag-over");
+      [...timelineEl.children].forEach(sib => sib.classList.remove("drag-over"));
+      if (overEl) {
+        moveStepToIndex(step.id, [...timelineEl.children].indexOf(overEl));
+      }
+    });
+
+    handle.addEventListener("pointercancel", () => {
+      dragging = false;
+      stepEl.style.transform = "";
+      stepEl.classList.remove("dragging");
+      [...timelineEl.children].forEach(sib => sib.classList.remove("drag-over"));
     });
 
     timelineEl.appendChild(stepEl);

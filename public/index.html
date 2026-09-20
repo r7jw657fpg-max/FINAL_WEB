@@ -80,14 +80,14 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   position: absolute; top: 60px; left: 20px; width: clamp(280px, 38vw, 420px); max-height: 65vh; overflow-y: auto;
   color: #fff; font-weight: 300; font-size: 16px; line-height: 1.8; background: transparent;
   padding: 24px; z-index: 26; white-space: pre-wrap;
-  text-shadow: 0 0 4px rgba(0,0,0,.9), 0 2px 14px rgba(0,0,0,.85), 0 0 34px rgba(0,0,0,.7);
+  text-shadow: 0 1px 6px rgba(0,0,0,.7);
 }
 
 #statsOverlay {
   position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: flex-start;
-  color: #fff; font-family: monospace; font-size: 20px;
+  color: #fff; font-weight: 300; font-size: 22px;
   text-align: left; white-space: pre-wrap; padding: 0 0 0 8%;
-  text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 24px rgba(0,0,0,.6);
+  text-shadow: 0 1px 6px rgba(0,0,0,.7);
   pointer-events: none;
 }
 #statsOverlay.active { display: flex; }
@@ -97,7 +97,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 #liveStats {
   position: fixed; bottom: 100px; left: 20px; z-index: 26;
   background: rgba(12,12,12,.85); color: #fff; padding: 12px 16px;
-  border-radius: 6px; font-family: monospace; font-size: 12px; display: none;
+  border-radius: 6px; font-weight: 300; font-size: 13px; display: none;
 }
 #liveStats.active { display: block; }
 
@@ -141,7 +141,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   overflow-y: auto; z-index: 26; pointer-events: none;
   color: #fff; font-family: "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: 300; font-size: 21px; line-height: 1.6; white-space: pre-wrap;
-  text-shadow: 0 0 4px rgba(0,0,0,.9), 0 2px 14px rgba(0,0,0,.85), 0 0 34px rgba(0,0,0,.7);
+  text-shadow: 0 1px 6px rgba(0,0,0,.7);
   opacity: 0; transition: opacity .4s ease;
 }
 #storyStepText.active { opacity: 1; }
@@ -167,52 +167,78 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .found-item img { width: 100%; height: auto; display: block; border-radius: 6px; background: #222; cursor: pointer; }
 .found-item p { margin: 6px 0 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
 
-/* ===== Look Builder: über alle Traces hinweg gesammelte Fundstücke
-   zu einem Look stapeln (Hut → Oberteil → Hose → Schuh) ===== */
-#lookBuilderToggle {
-  position: fixed; left: 18px; bottom: 58px; z-index: 55;
-  padding: 10px 16px; border: 1px solid rgba(255,255,255,.3); border-radius: 30px;
-  background: rgba(12,12,12,.85); color: #fff; font-size: 11px; letter-spacing: .05em;
-  text-transform: uppercase; cursor: pointer;
-}
-#lookBuilderToggle:hover { background: rgba(12,12,12,.97); }
-#lookBuilderToggle #lookBuilderCount {
-  display: inline-block; margin-left: 6px; min-width: 16px; padding: 1px 5px;
-  border-radius: 20px; background: #fff; color: #000; font-size: 10px; font-weight: 700;
-}
-
+/* ===== Look Builder: Fundstücke per Drag & Drop frei auf einer
+   Avatar-Silhouette platzieren, statt automatisch zuzuschneiden.
+   Öffnet sich von selbst beim ersten gefundenen Kleidungsstück. */
 #lookBuilderPanel {
-  position: fixed; left: 18px; bottom: 106px; z-index: 55;
-  width: clamp(190px, 26vw, 230px); max-height: 62vh; overflow-y: auto;
+  position: fixed; left: 18px; bottom: 18px; z-index: 55;
+  width: clamp(220px, 26vw, 280px); max-height: 76vh;
+  display: flex; flex-direction: column; gap: 12px;
   background: rgba(12,12,12,.96); border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
   padding: 18px; color: #fff;
   opacity: 0; transform: translateY(12px); visibility: hidden;
-  transition: opacity .3s ease, transform .3s ease, visibility 0s linear .3s;
+  transition: opacity .35s ease, transform .35s ease, visibility 0s linear .35s;
 }
 #lookBuilderPanel.active {
   opacity: 1; transform: translateY(0); visibility: visible;
-  transition: opacity .3s ease, transform .3s ease, visibility 0s linear 0s;
+  transition: opacity .35s ease, transform .35s ease, visibility 0s linear 0s;
 }
-.look-builder-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.look-builder-header { display: flex; justify-content: space-between; align-items: flex-start; }
 .look-builder-title { margin-top: 3px; font-size: 17px; }
 #lookBuilderClose { background: none; border: 0; color: #fff; font-size: 18px; cursor: pointer; opacity: .6; }
 #lookBuilderClose:hover { opacity: 1; }
 
-.look-category-block { margin-bottom: 16px; }
-.look-category-block:last-child { margin-bottom: 0; }
-.look-category-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; opacity: .5; margin-bottom: 6px; }
-.look-slot-preview {
-  height: 90px; border: 1px dashed rgba(255,255,255,.22); border-radius: 8px;
-  display: flex; align-items: center; justify-content: center; overflow: hidden; background: rgba(255,255,255,.03);
+.look-avatar-canvas {
+  position: relative; flex: 0 0 auto; height: 46vh; min-height: 220px;
+  border-radius: 8px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.1);
+  overflow: hidden;
 }
-.look-slot-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.look-slot-preview.empty .look-slot-hint { font-size: 9px; opacity: .4; text-align: center; padding: 0 10px; }
-.look-thumbs { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; }
-.look-thumb {
-  width: 34px; height: 34px; flex-shrink: 0; object-fit: contain; background: rgba(255,255,255,.04);
-  border-radius: 4px; border: 1px solid rgba(255,255,255,.15); cursor: pointer; opacity: .6;
+.look-avatar-silhouette { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.look-avatar-silhouette path, .look-avatar-silhouette circle {
+  fill: rgba(255,255,255,.05); stroke: rgba(255,255,255,.2); stroke-width: 2;
 }
-.look-thumb.selected { opacity: 1; border-color: #fff; }
+
+.look-tray-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; opacity: .5; }
+.look-tray { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.look-tray-item {
+  width: 46px; height: 46px; flex-shrink: 0; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.04);
+  cursor: grab; touch-action: none; overflow: hidden;
+}
+.look-tray-item:active { cursor: grabbing; }
+.look-tray-item img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.look-tray-item.placed { border-color: #ffd400; }
+
+.look-placed-item {
+  position: absolute; width: 76px; height: 76px; transform: translate(-50%, -50%);
+  cursor: grab; touch-action: none;
+}
+.look-placed-item:active { cursor: grabbing; }
+.look-placed-item img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+.look-placed-remove {
+  position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%;
+  background: #000; color: #fff; border: 1px solid rgba(255,255,255,.3); font-size: 11px; line-height: 16px;
+  text-align: center; cursor: pointer; opacity: 0; transition: opacity .15s ease;
+}
+.look-placed-item:hover .look-placed-remove { opacity: 1; }
+
+.look-ghost {
+  position: fixed; z-index: 999; pointer-events: none; width: 60px; height: 60px;
+  opacity: .85; transform: translate(-50%, -50%);
+}
+.look-ghost img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+
+#lookBuilderReopen {
+  position: fixed; left: 18px; bottom: 18px; z-index: 55; display: none;
+  padding: 10px 16px; border: 1px solid rgba(255,255,255,.3); border-radius: 30px;
+  background: rgba(12,12,12,.85); color: #fff; font-size: 11px; letter-spacing: .05em;
+  text-transform: uppercase; cursor: pointer;
+}
+#lookBuilderReopen.visible { display: inline-block; }
+#lookBuilderReopen #lookBuilderCount {
+  display: inline-block; margin-left: 6px; min-width: 16px; padding: 1px 5px;
+  border-radius: 20px; background: #fff; color: #000; font-size: 10px; font-weight: 700;
+}
 
 /* ===== Vintage-Video-Look: Korn, Scanlines, Vignette, Flackern =====
    Liegt bewusst NUR über der Karte (z-index knapp über #map), nicht über
@@ -333,7 +359,6 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   <div id="lightboxContent"></div>
 </div>
 
-<button id="lookBuilderToggle">Look Builder <span id="lookBuilderCount">0</span></button>
 <div id="lookBuilderPanel">
   <div class="look-builder-header">
     <div>
@@ -342,8 +367,16 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
     </div>
     <button id="lookBuilderClose">×</button>
   </div>
-  <div id="lookStage" class="look-stage"></div>
+  <div id="lookAvatarCanvas" class="look-avatar-canvas">
+    <svg class="look-avatar-silhouette" viewBox="0 0 200 400" preserveAspectRatio="xMidYMid meet">
+      <circle cx="100" cy="45" r="28"/>
+      <path d="M70,80 Q100,68 130,80 L142,150 Q145,190 138,230 L150,380 L120,380 L112,240 L100,240 L88,240 L80,380 L50,380 L62,230 Q55,190 58,150 Z"/>
+    </svg>
+  </div>
+  <div class="look-tray-label">Deine Fundstücke — auf die Silhouette ziehen</div>
+  <div id="lookTray" class="look-tray"></div>
 </div>
+<button id="lookBuilderReopen">Look Builder <span id="lookBuilderCount">0</span></button>
 
 <div class="marquee-bar marquee-bottom">
   <div class="marquee-track" data-marquee-text="CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - "></div>
@@ -1106,84 +1139,125 @@ storyCloseButton.addEventListener("click", () => {
 });
 
 /* ===== LOOK BUILDER =====
-   Sammelt entdeckte Lost&Found-Kleidungsstücke (mit Kategorie) über den
-   ganzen Besuch hinweg und lässt daraus einen Look zusammenstellen. */
-const LOOK_CATEGORIES = [
-  { key: "hut", label: "Hut" },
-  { key: "oberteil", label: "Oberteil" },
-  { key: "hose", label: "Hose" },
-  { key: "schuh", label: "Schuh" }
-];
-
+   Entdeckte Lost&Found-Kleidungsstücke landen in einer Ablage und werden
+   per Drag & Drop frei auf einer Avatar-Silhouette platziert — kein
+   automatisches Zuschneiden/Ausrichten, das übernimmt der Besuch selbst.
+   Öffnet sich von selbst, sobald das erste Fundstück da ist. */
 let discoveredLookItems = [];
-let selectedLookItems = {};
+let placedLookItems = []; // { placementId, itemId, x, y } — x/y als 0..1 Anteil der Canvas
+let lookBuilderAutoOpened = false;
 
-const lookBuilderToggle = document.getElementById("lookBuilderToggle");
-const lookBuilderCount = document.getElementById("lookBuilderCount");
 const lookBuilderPanel = document.getElementById("lookBuilderPanel");
-const lookStage = document.getElementById("lookStage");
+const lookBuilderReopen = document.getElementById("lookBuilderReopen");
+const lookBuilderCount = document.getElementById("lookBuilderCount");
+const lookAvatarCanvas = document.getElementById("lookAvatarCanvas");
+const lookTray = document.getElementById("lookTray");
 
 function registerLookItem(item) {
-  if (!item.category || !LOOK_CATEGORIES.some(c => c.key === item.category)) return;
+  if (!item.category) return;
   if (!item.image_url && !item.cutout_url) return;
   if (discoveredLookItems.some(i => i.id === item.id)) return;
   discoveredLookItems.push(item);
   lookBuilderCount.innerText = discoveredLookItems.length;
+  lookBuilderReopen.classList.add("visible");
+  if (!lookBuilderAutoOpened) {
+    lookBuilderAutoOpened = true;
+    lookBuilderPanel.classList.add("active");
+  }
   renderLookBuilder();
 }
 
 function renderLookBuilder() {
-  lookStage.innerHTML = "";
-  LOOK_CATEGORIES.forEach(cat => {
-    const block = document.createElement("div");
-    block.className = "look-category-block";
+  lookTray.innerHTML = "";
+  discoveredLookItems.forEach(item => {
+    const thumb = document.createElement("div");
+    thumb.className = "look-tray-item" + (placedLookItems.some(p => p.itemId === item.id) ? " placed" : "");
+    const img = document.createElement("img");
+    img.src = item.cutout_url || item.image_url;
+    thumb.appendChild(img);
+    thumb.title = item.note || "";
+    thumb.addEventListener("pointerdown", (event) => startTrayDrag(event, item));
+    lookTray.appendChild(thumb);
+  });
 
-    const label = document.createElement("div");
-    label.className = "look-category-label";
-    label.innerText = cat.label;
-    block.appendChild(label);
-
-    const itemsForCat = discoveredLookItems.filter(i => i.category === cat.key);
-    const selectedId = selectedLookItems[cat.key];
-    const selectedItem = itemsForCat.find(i => i.id === selectedId);
-
-    const preview = document.createElement("div");
-    preview.className = "look-slot-preview" + (selectedItem ? "" : " empty");
-    if (selectedItem) {
-      const img = document.createElement("img");
-      img.src = selectedItem.cutout_url || selectedItem.image_url;
-      preview.appendChild(img);
-    } else {
-      const hint = document.createElement("span");
-      hint.className = "look-slot-hint";
-      hint.innerText = itemsForCat.length ? "auswählen ↓" : "noch nichts gefunden";
-      preview.appendChild(hint);
-    }
-    block.appendChild(preview);
-
-    if (itemsForCat.length > 0) {
-      const thumbs = document.createElement("div");
-      thumbs.className = "look-thumbs";
-      itemsForCat.forEach(item => {
-        const thumb = document.createElement("img");
-        thumb.className = "look-thumb" + (item.id === selectedId ? " selected" : "");
-        thumb.src = item.cutout_url || item.image_url;
-        thumb.title = item.note || cat.label;
-        thumb.addEventListener("click", () => {
-          selectedLookItems[cat.key] = (selectedLookItems[cat.key] === item.id) ? null : item.id;
-          renderLookBuilder();
-        });
-        thumbs.appendChild(thumb);
-      });
-      block.appendChild(thumbs);
-    }
-
-    lookStage.appendChild(block);
+  lookAvatarCanvas.querySelectorAll(".look-placed-item").forEach(el => el.remove());
+  placedLookItems.forEach(placement => {
+    const item = discoveredLookItems.find(i => i.id === placement.itemId);
+    if (!item) return;
+    const el = document.createElement("div");
+    el.className = "look-placed-item";
+    el.style.left = (placement.x * 100) + "%";
+    el.style.top = (placement.y * 100) + "%";
+    const img = document.createElement("img");
+    img.src = item.cutout_url || item.image_url;
+    const remove = document.createElement("div");
+    remove.className = "look-placed-remove";
+    remove.innerText = "×";
+    remove.addEventListener("click", (event) => {
+      event.stopPropagation();
+      placedLookItems = placedLookItems.filter(p => p.placementId !== placement.placementId);
+      renderLookBuilder();
+    });
+    el.append(img, remove);
+    el.addEventListener("pointerdown", (event) => startPlacedDrag(event, placement, el));
+    lookAvatarCanvas.appendChild(el);
   });
 }
 
-lookBuilderToggle.addEventListener("click", () => lookBuilderPanel.classList.toggle("active"));
+function startTrayDrag(event, item) {
+  event.preventDefault();
+  const ghost = document.createElement("div");
+  ghost.className = "look-ghost";
+  const img = document.createElement("img");
+  img.src = item.cutout_url || item.image_url;
+  ghost.appendChild(img);
+  document.body.appendChild(ghost);
+  ghost.style.left = event.clientX + "px";
+  ghost.style.top = event.clientY + "px";
+
+  function onMove(moveEvent) {
+    ghost.style.left = moveEvent.clientX + "px";
+    ghost.style.top = moveEvent.clientY + "px";
+  }
+  function onUp(upEvent) {
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    ghost.remove();
+    const rect = lookAvatarCanvas.getBoundingClientRect();
+    if (upEvent.clientX >= rect.left && upEvent.clientX <= rect.right && upEvent.clientY >= rect.top && upEvent.clientY <= rect.bottom) {
+      const x = (upEvent.clientX - rect.left) / rect.width;
+      const y = (upEvent.clientY - rect.top) / rect.height;
+      placedLookItems.push({ placementId: "placed-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7), itemId: item.id, x, y });
+      renderLookBuilder();
+    }
+  }
+  document.addEventListener("pointermove", onMove);
+  document.addEventListener("pointerup", onUp);
+}
+
+function startPlacedDrag(event, placement, el) {
+  if (event.target.classList.contains("look-placed-remove")) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  function onMove(moveEvent) {
+    const rect = lookAvatarCanvas.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (moveEvent.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (moveEvent.clientY - rect.top) / rect.height));
+    el.style.left = (x * 100) + "%";
+    el.style.top = (y * 100) + "%";
+    placement.x = x; placement.y = y;
+  }
+  function onUp() {
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+  }
+  document.addEventListener("pointermove", onMove);
+  document.addEventListener("pointerup", onUp);
+}
+
 document.getElementById("lookBuilderClose").addEventListener("click", () => lookBuilderPanel.classList.remove("active"));
+lookBuilderReopen.addEventListener("click", () => lookBuilderPanel.classList.add("active"));
 
 renderLookBuilder();
 
