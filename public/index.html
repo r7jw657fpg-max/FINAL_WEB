@@ -170,6 +170,37 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 .found-item img { width: 100%; height: auto; display: block; border-radius: 6px; background: #222; cursor: pointer; }
 .found-item p { margin: 6px 0 0; font-size: 11px; color: #fff; opacity: .85; white-space: pre-wrap; }
 
+/* Ersetzt die Found-Items-Leiste bei Lost&Found-Schritten: Kacheln für
+   Werkstatt (Process Insights) und die bisher gefundenen Scans. */
+#lostFoundPanel {
+  display: none; flex: 1 1 auto; min-height: 0; gap: 14px;
+}
+#lostFoundPanel.active { display: flex; }
+.lf-tile {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; border-radius: 10px; background: #0c0c0c; box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  cursor: pointer; padding: 18px; text-align: center;
+}
+.lf-tile:hover { background: #161616; }
+.lf-tile.disabled { opacity: .35; cursor: default; pointer-events: none; }
+.lf-tile-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #fff; font-weight: 300; }
+.lf-tile-hint { font-size: 10px; color: #fff; opacity: .5; }
+
+#scanGalleryView {
+  position: fixed; inset: 0; z-index: 72; display: none;
+  background: rgba(6,6,6,.97); align-items: center; justify-content: center;
+}
+#scanGalleryView.active { display: flex; }
+#scanGalleryClose {
+  position: absolute; top: 16px; right: 20px; background: none; border: 0;
+  color: #fff; font-size: 28px; cursor: pointer; opacity: .7;
+}
+#scanGalleryClose:hover { opacity: 1; }
+#scanGalleryRow { display: flex; gap: 24px; overflow-x: auto; padding: 40px; max-width: 100%; }
+.scan-gallery-item { flex: 0 0 auto; width: 280px; height: 340px; background: rgba(255,255,255,.03); border-radius: 10px; overflow: hidden; }
+.scan-gallery-item model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
+.scan-gallery-name { text-align: center; font-size: 11px; color: #fff; opacity: .6; margin-top: 6px; }
+
 /* ===== Look Builder: Fundstücke per Drag & Drop frei auf einer
    Avatar-Silhouette platzieren, statt automatisch zuzuschneiden.
    Öffnet sich von selbst beim ersten gefundenen Kleidungsstück. */
@@ -264,6 +295,11 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   background: none; border: 0; color: #fff; font-size: 28px; cursor: pointer; opacity: .7;
 }
 #workshopClose:hover { opacity: 1; }
+#workshopNextButton {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 5;
+  padding: 12px 28px; border: 0; border-radius: 30px; background: #ffd400; color: #000;
+  font-size: 11px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+}
 
 .workshop-column { min-width: 0; flex: 1 1 0; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
 .workshop-column-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #fff; opacity: .5; }
@@ -406,6 +442,21 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
     <h4>Found Items</h4>
     <div id="foundItemsList"><div class="hint" style="opacity:.4;color:#fff;font-size:11px;">Noch nichts gefunden.</div></div>
   </div>
+  <div id="lostFoundPanel">
+    <div id="workshopTile" class="lf-tile">
+      <div class="lf-tile-label">Werkstatt</div>
+      <div class="lf-tile-hint">Process Insights öffnen</div>
+    </div>
+    <div id="scanTile" class="lf-tile">
+      <div class="lf-tile-label">Scans</div>
+      <div class="lf-tile-hint"><span id="scanTileCount">0</span> gefunden</div>
+    </div>
+  </div>
+</div>
+
+<div id="scanGalleryView">
+  <button id="scanGalleryClose">×</button>
+  <div id="scanGalleryRow"></div>
 </div>
 
 <div id="lightbox">
@@ -425,6 +476,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
     <svg class="look-avatar-silhouette" viewBox="0 0 200 400" preserveAspectRatio="xMidYMid meet">
       <circle cx="100" cy="45" r="28"/>
       <path d="M70,80 Q100,68 130,80 L142,150 Q145,190 138,230 L150,380 L120,380 L112,240 L100,240 L88,240 L80,380 L50,380 L62,230 Q55,190 58,150 Z"/>
+      <path d="M72,84 Q58,88 50,100 L36,200 Q34,212 44,214 L54,216 Q62,217 63,206 L74,118 Q76,98 82,90 Z"/>
+      <path d="M128,84 Q142,88 150,100 L164,200 Q166,212 156,214 L146,216 Q138,217 137,206 L126,118 Q124,98 118,90 Z"/>
     </svg>
   </div>
   <div class="look-tray-label">Deine Fundstücke — auf die Silhouette ziehen</div>
@@ -443,6 +496,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
     <div class="workshop-column-label">Änderungen</div>
     <div id="workshopChangeCanvas" class="workshop-public-canvas"></div>
   </div>
+  <button id="workshopNextButton">Weiter zum Look Builder</button>
 </div>
 
 <div id="lookBuilderStageView">
@@ -521,6 +575,29 @@ const storyNextButton = document.getElementById("storyNextButton");
 const storyCloseButton = document.getElementById("storyCloseButton");
 const foundItemsList = document.getElementById("foundItemsList");
 const foundItemsPanel = document.getElementById("foundItemsPanel");
+const lostFoundPanel = document.getElementById("lostFoundPanel");
+const workshopTile = document.getElementById("workshopTile");
+const scanTile = document.getElementById("scanTile");
+const scanTileCount = document.getElementById("scanTileCount");
+const scanGalleryView = document.getElementById("scanGalleryView");
+const scanGalleryRow = document.getElementById("scanGalleryRow");
+let discoveredScans = [];
+
+scanTile.addEventListener("click", () => {
+  if (!discoveredScans.length) return;
+  scanGalleryRow.innerHTML = "";
+  discoveredScans.forEach(scan => {
+    const item = document.createElement("div");
+    item.className = "scan-gallery-item";
+    item.innerHTML = '<model-viewer src="' + scan.media_url + '" camera-controls auto-rotate exposure="1" zoom-sensitivity="2.5"></model-viewer>';
+    scanGalleryRow.appendChild(item);
+  });
+  scanGalleryView.classList.add("active");
+});
+document.getElementById("scanGalleryClose").addEventListener("click", () => {
+  scanGalleryView.classList.remove("active");
+  scanGalleryRow.innerHTML = "";
+});
 
 map.on("load", () => { map.setProjection("globe"); });
 
@@ -1081,10 +1158,24 @@ function playStory(steps, index, route) {
   const prevStep = index > 0 ? steps[index - 1] : null;
   const isLast = index === steps.length - 1;
   const isWorkshopStep = step.category === "lost_and_found" && step.media_type === "model";
-  // Die alte Found-Items-Leiste wird bei diesen Schritten durch die
-  // Werkstatt-Seite ersetzt, darum hier ausblenden statt doppelt zeigen.
-  foundItemsPanel.style.display = isWorkshopStep ? "none" : "";
-  storyMediaPanel.classList.toggle("full-height", isWorkshopStep);
+  const isLostFoundStep = step.category === "lost_and_found";
+  const openThisWorkshop = () => openWorkshopView(step, () => playStory(steps, index + 1, route));
+
+  // Die alte Found-Items-Leiste wird bei Lost&Found-Schritten durch die
+  // Werkstatt-/Scan-Kacheln ersetzt.
+  foundItemsPanel.style.display = isLostFoundStep ? "none" : "";
+  lostFoundPanel.classList.toggle("active", isLostFoundStep);
+  storyMediaPanel.classList.toggle("full-height", isLostFoundStep);
+
+  if (isLostFoundStep) {
+    workshopTile.classList.toggle("disabled", !isWorkshopStep);
+    workshopTile.onclick = isWorkshopStep ? openThisWorkshop : null;
+    if (isWorkshopStep && !discoveredScans.some(s => s.stepId === step.id)) {
+      discoveredScans.push({ stepId: step.id, media_url: step.media_url, name: route.name });
+      scanTileCount.innerText = discoveredScans.length;
+    }
+    scanTile.classList.toggle("disabled", discoveredScans.length === 0);
+  }
 
   const nextLayer = (index % 2 === 0) ? storyLayerA : storyLayerB;
   const activeLayer = (index % 2 === 0) ? storyLayerB : storyLayerA;
@@ -1147,7 +1238,7 @@ function playStory(steps, index, route) {
       storyNextButton.style.display = "block";
       storyNextButton.innerText = isWorkshopStep ? "Process Insights" : (index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter"));
       storyNextButton.onclick = isWorkshopStep
-        ? () => openWorkshopView(step, () => playStory(steps, index + 1, route))
+        ? openThisWorkshop
         : () => playStory(steps, index + 1, route);
     }
 
@@ -1436,10 +1527,12 @@ async function openWorkshopView(step, onClose) {
   }
 }
 
-document.getElementById("workshopClose").addEventListener("click", () => {
+function advanceFromWorkshopToLookBuilder() {
   workshopView.classList.remove("active");
   openLookBuilderStage(currentWorkshopStep, workshopContinueCallback);
-});
+}
+document.getElementById("workshopClose").addEventListener("click", advanceFromWorkshopToLookBuilder);
+document.getElementById("workshopNextButton").addEventListener("click", advanceFromWorkshopToLookBuilder);
 
 /* ===== EIGENE LOOK-BUILDER-SEITE (nach der Werkstatt-Seite) ===== */
 const lookBuilderStageView = document.getElementById("lookBuilderStageView");
