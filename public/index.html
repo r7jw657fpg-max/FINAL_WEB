@@ -125,6 +125,9 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   position: relative; background: #0c0c0c; border-radius: 10px;
   overflow: hidden; pointer-events: all; box-shadow: 0 20px 60px rgba(0,0,0,.55);
 }
+/* Ohne Found-Items-Leiste darunter (Werkstatt-Schritte) darf das Medium
+   die volle Höhe des Story-Panels einnehmen. */
+#storyMediaPanel.full-height { flex: 1 1 auto; max-height: 100%; }
 .story-layer { position: absolute; inset: 0; display: flex; align-items: stretch; justify-content: center; opacity: 0; }
 .story-layer-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
 .story-layer img, .story-layer video { max-width: 100%; max-height: 100%; }
@@ -275,10 +278,13 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 #workshopScanStage img { width: 100%; height: 100%; object-fit: contain; }
 .workshop-comment { color: #fff; font-weight: 300; font-size: 15px; line-height: 1.7; white-space: pre-wrap; opacity: .85; }
 
-.workshop-process-canvas { position: relative; flex: 1 1 auto; min-height: 320px; }
-.workshop-process-photo { position: absolute; width: 170px; transform: translate(-50%, -50%); text-align: center; }
-.workshop-process-photo img { width: 100%; border-radius: 8px; display: block; box-shadow: 0 10px 30px rgba(0,0,0,.5); cursor: pointer; }
-.workshop-process-caption { margin-top: 8px; font-size: 12px; color: #fff; opacity: .75; line-height: 1.5; }
+.workshop-process-list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 22px; }
+.workshop-process-row { display: flex; gap: 18px; align-items: flex-start; }
+.workshop-process-row img {
+  width: 160px; flex-shrink: 0; border-radius: 8px; display: block;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5); cursor: pointer;
+}
+.workshop-process-caption { color: #fff; font-weight: 300; font-size: 14px; line-height: 1.7; opacity: .85; white-space: pre-wrap; }
 
 /* Look Builder eingebettet in der Werkstatt-Seite statt als schwebendes Panel */
 #lookBuilderPanel.embedded {
@@ -431,8 +437,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
     <div id="workshopComment" class="workshop-comment"></div>
   </div>
   <div class="workshop-column workshop-column-process">
-    <div class="workshop-column-label">Bearbeitungsprozess</div>
-    <div id="workshopProcessCanvas" class="workshop-process-canvas"></div>
+    <div class="workshop-column-label">Process Insights</div>
+    <div id="workshopProcessList" class="workshop-process-list"></div>
   </div>
   <div class="workshop-column workshop-column-look" id="workshopLookColumn"></div>
 </div>
@@ -507,6 +513,7 @@ const storyLayerB = document.getElementById("storyLayerB");
 const storyNextButton = document.getElementById("storyNextButton");
 const storyCloseButton = document.getElementById("storyCloseButton");
 const foundItemsList = document.getElementById("foundItemsList");
+const foundItemsPanel = document.getElementById("foundItemsPanel");
 
 map.on("load", () => { map.setProjection("globe"); });
 
@@ -1066,6 +1073,11 @@ function playStory(steps, index, route) {
   const step = steps[index];
   const prevStep = index > 0 ? steps[index - 1] : null;
   const isLast = index === steps.length - 1;
+  const isWorkshopStep = step.category === "lost_and_found" && step.media_type === "model";
+  // Die alte Found-Items-Leiste wird bei diesen Schritten durch die
+  // Werkstatt-Seite ersetzt, darum hier ausblenden statt doppelt zeigen.
+  foundItemsPanel.style.display = isWorkshopStep ? "none" : "";
+  storyMediaPanel.classList.toggle("full-height", isWorkshopStep);
 
   const nextLayer = (index % 2 === 0) ? storyLayerA : storyLayerB;
   const activeLayer = (index % 2 === 0) ? storyLayerB : storyLayerA;
@@ -1126,8 +1138,7 @@ function playStory(steps, index, route) {
       built.video.addEventListener("ended", () => playStory(steps, index + 1, route), { once: true });
     } else {
       storyNextButton.style.display = "block";
-      const isWorkshopStep = step.category === "lost_and_found" && step.media_type === "model";
-      storyNextButton.innerText = isWorkshopStep ? "Fundstück ansehen" : (index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter"));
+      storyNextButton.innerText = isWorkshopStep ? "Process Insights" : (index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter"));
       storyNextButton.onclick = isWorkshopStep
         ? () => openWorkshopView(step, () => playStory(steps, index + 1, route))
         : () => playStory(steps, index + 1, route);
@@ -1367,7 +1378,7 @@ renderLookBuilder();
 const workshopView = document.getElementById("workshopView");
 const workshopScanStage = document.getElementById("workshopScanStage");
 const workshopComment = document.getElementById("workshopComment");
-const workshopProcessCanvas = document.getElementById("workshopProcessCanvas");
+const workshopProcessList = document.getElementById("workshopProcessList");
 const workshopLookColumn = document.getElementById("workshopLookColumn");
 let workshopCloseCallback = null;
 
@@ -1388,36 +1399,34 @@ async function openWorkshopView(step, onClose) {
   lookBuilderPanel.classList.add("embedded");
   workshopLookColumn.appendChild(lookBuilderPanel);
 
-  workshopProcessCanvas.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Lädt ...</div>';
+  workshopProcessList.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Lädt ...</div>';
   workshopView.classList.add("active");
 
   try {
     const entries = await api("/api/steps/" + step.id + "/process");
-    workshopProcessCanvas.innerHTML = "";
+    workshopProcessList.innerHTML = "";
     if (!entries.length) {
-      workshopProcessCanvas.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Noch keine Prozessfotos.</div>';
+      workshopProcessList.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Noch keine Prozessfotos.</div>';
     } else {
       entries.forEach(entry => {
-        const el = document.createElement("div");
-        el.className = "workshop-process-photo";
-        el.style.left = (entry.x * 100) + "%";
-        el.style.top = (entry.y * 100) + "%";
+        const row = document.createElement("div");
+        row.className = "workshop-process-row";
         const img = document.createElement("img");
         img.src = entry.image_url;
         img.addEventListener("click", () => openLightbox(entry.image_url));
-        el.appendChild(img);
+        row.appendChild(img);
         if (entry.caption) {
           const caption = document.createElement("div");
           caption.className = "workshop-process-caption";
           caption.innerText = entry.caption;
-          el.appendChild(caption);
+          row.appendChild(caption);
         }
-        workshopProcessCanvas.appendChild(el);
+        workshopProcessList.appendChild(row);
       });
     }
   } catch (error) {
     console.error(error);
-    workshopProcessCanvas.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Fehler beim Laden.</div>';
+    workshopProcessList.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Fehler beim Laden.</div>';
   }
 }
 
