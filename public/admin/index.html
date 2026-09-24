@@ -736,9 +736,15 @@ function buildWorkshopBox(step) {
   finishedUploadInput.addEventListener("change", async () => {
     const file = finishedUploadInput.files[0];
     if (!file) return;
-    status("Bild wird hochgeladen...");
     try {
-      const uploaded = await uploadFile(file);
+      status("Bild wird hochgeladen...");
+      let finalFile = file;
+      const cutoutFile = await cutoutForLookBuilder(file);
+      if (cutoutFile) {
+        finalFile = cutoutFile;
+        status("Freigestelltes Bild wird hochgeladen...");
+      }
+      const uploaded = await uploadFile(finalFile);
       step.finished_piece_url = uploaded.url;
       if (!step.finished_piece_category) step.finished_piece_category = Object.keys(LOOK_CATEGORY_LABELS)[0];
       await persistStep(step);
