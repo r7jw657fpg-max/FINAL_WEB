@@ -170,11 +170,12 @@ export default {
         if (authError) return authError;
         const body = await request.json();
         await env.DB.prepare(
-          "UPDATE trace_steps SET media_type=?, media_url=?, text_overlay=?, audio_url=?, transition=?, category=?, lng=?, lat=?, item_comment=? WHERE id=?"
+          "UPDATE trace_steps SET media_type=?, media_url=?, text_overlay=?, audio_url=?, transition=?, category=?, lng=?, lat=?, item_comment=?, finished_piece_url=?, finished_piece_category=? WHERE id=?"
         ).bind(
           body.media_type || "image", body.media_url || "", body.text_overlay || "",
           body.audio_url || "", body.transition || "cut", body.category || "weg",
-          body.lng || null, body.lat || null, body.item_comment || "", stepId
+          body.lng || null, body.lat || null, body.item_comment || "",
+          body.finished_piece_url || "", body.finished_piece_category || "", stepId
         ).run();
         return json({ ok: true });
       }
@@ -288,8 +289,8 @@ export default {
         const body = await request.json();
         const entryId = newId("process");
         await env.DB.prepare(
-          "INSERT INTO process_entries (id, step_id, image_url, caption, x, y, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        ).bind(entryId, stepId, body.image_url || "", body.caption || "", body.x || 0.5, body.y || 0.5, new Date().toISOString()).run();
+          "INSERT INTO process_entries (id, step_id, image_url, caption, x, y, created_at, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(entryId, stepId, body.image_url || "", body.caption || "", body.x || 0.5, body.y || 0.5, new Date().toISOString(), body.kind || "change").run();
         return json({ id: entryId }, 201);
       }
       return methodNotAllowed();
@@ -307,8 +308,8 @@ export default {
         const authError = requireAdmin(request, env);
         if (authError) return authError;
         const body = await request.json();
-        await env.DB.prepare("UPDATE process_entries SET image_url=?, caption=?, x=?, y=? WHERE id=?")
-          .bind(body.image_url || "", body.caption || "", body.x || 0.5, body.y || 0.5, entryId).run();
+        await env.DB.prepare("UPDATE process_entries SET image_url=?, caption=?, x=?, y=?, kind=? WHERE id=?")
+          .bind(body.image_url || "", body.caption || "", body.x || 0.5, body.y || 0.5, body.kind || "change", entryId).run();
         return json({ ok: true });
       }
       return methodNotAllowed();

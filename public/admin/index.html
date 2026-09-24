@@ -95,14 +95,24 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 .entry-form label { margin-bottom: 8px; }
 .entry-add-button { width: 100%; margin-top: 4px; padding: 7px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
 
-.workshop-row {
-  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
-  padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.06);
-}
 .workshop-row-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: #222; }
-.workshop-row-caption {
-  flex: 1; min-height: 56px; margin-top: 0; font-size: 10px;
-  background: #1c1c1c; color: #fff; border: 1px solid rgba(255,255,255,.18); border-radius: 4px; padding: 8px;
+
+.workshop-section { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,.1); }
+.workshop-canvas {
+  position: relative; height: 200px; margin-bottom: 13px; border-radius: 6px;
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 10px, rgba(255,255,255,.04) 10px 20px);
+  border: 1px dashed rgba(255,255,255,.18); overflow: hidden;
+}
+.workshop-photo {
+  position: absolute; width: 56px; height: 56px; transform: translate(-50%, -50%);
+  cursor: grab; touch-action: none; border-radius: 4px; overflow: visible;
+}
+.workshop-photo:active { cursor: grabbing; }
+.workshop-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; pointer-events: none; box-shadow: 0 4px 10px rgba(0,0,0,.5); }
+.workshop-photo-remove {
+  position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%;
+  background: #000; color: #fff; border: 1px solid rgba(255,255,255,.3); font-size: 10px; line-height: 14px;
+  text-align: center; cursor: pointer;
 }
 
 #dialog { position: absolute; z-index: 100; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
@@ -526,117 +536,224 @@ async function persistStep(step) {
     body: JSON.stringify({
       media_type: step.media_type, media_url: step.media_url, text_overlay: step.text_overlay,
       audio_url: step.audio_url, transition: step.transition, category: step.category,
-      lng: step.lng, lat: step.lat, item_comment: step.item_comment
+      lng: step.lng, lat: step.lat, item_comment: step.item_comment,
+      finished_piece_url: step.finished_piece_url, finished_piece_category: step.finished_piece_category
     })
   });
 }
 
-function buildWorkshopBox(step) {
-  const box = document.createElement("div");
-  box.className = "entries-box";
-  box.innerHTML = '<div class="hint">Wird beim Öffnen geladen ...</div>';
+// Eine frei bespielbare Drag&Drop-Fläche für Prozessfotos einer Art
+// ("raw" = Unbearbeitete Pieces, "change" = Änderungen). Fotos werden per
+// Ziehen positioniert, Bildunterschrift ist direkt am Foto editierbar,
+// Mehrfach-Upload möglich.
+function buildProcessCanvas(step, kind, titleText, hintText) {
+  const wrap = document.createElement("div");
+  wrap.className = "workshop-section";
+  wrap.innerHTML = '<div class="hint">Wird beim Öffnen geladen ...</div>';
   let loaded = false;
   let entries = [];
 
+  function startEntryDrag(event, entry, el, canvas) {
+    event.preventDefault();
+    event.stopPropagation();
+    function onMove(moveEvent) {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (moveEvent.clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (moveEvent.clientY - rect.top) / rect.height));
+      el.style.left = (x * 100) + "%"; el.style.top = (y * 100) + "%";
+      entry.x = x; entry.y = y;
+    }
+    async function onUp() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      await api("/api/process/" + entry.id, {
+        method: "PUT",
+        body: JSON.stringify({ image_url: entry.image_url, caption: entry.caption, x: entry.x, y: entry.y, kind })
+      });
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }
+
   function render() {
-    box.innerHTML = "";
+    wrap.innerHTML = "";
     const title = document.createElement("div");
     title.className = "entries-title";
-    title.innerText = "Werkstatt-Seite: Kommentar & Process Insights";
-    box.appendChild(title);
+    title.innerText = titleText;
+    wrap.appendChild(title);
 
-    const commentLabel = document.createElement("label");
-    commentLabel.innerText = "Kommentar zum Fundstück";
-    const commentInput = document.createElement("textarea");
-    commentInput.value = step.item_comment || "";
-    commentInput.addEventListener("change", async () => {
-      step.item_comment = commentInput.value;
-      await persistStep(step);
-      status("Kommentar gespeichert.");
-    });
-    commentLabel.appendChild(commentInput);
-    box.appendChild(commentLabel);
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.style.marginBottom = "8px";
+    hint.innerText = hintText;
+    wrap.appendChild(hint);
 
-    // Jedes Prozessfoto als Zeile: Bild + zugehöriger Kommentar direkt daneben.
+    const canvas = document.createElement("div");
+    canvas.className = "workshop-canvas";
     entries.forEach(entry => {
-      const row = document.createElement("div");
-      row.className = "workshop-row";
-      const thumb = document.createElement("img");
-      thumb.className = "workshop-row-thumb";
-      thumb.src = entry.image_url;
+      const el = document.createElement("div");
+      el.className = "workshop-photo";
+      el.style.left = (entry.x * 100) + "%";
+      el.style.top = (entry.y * 100) + "%";
+      const img = document.createElement("img");
+      img.src = entry.image_url;
+      const del = document.createElement("div");
+      del.className = "workshop-photo-remove";
+      del.innerText = "×";
+      del.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        await api("/api/process/" + entry.id, { method: "DELETE" });
+        entries = entries.filter(e => e.id !== entry.id);
+        render();
+      });
+      el.append(img, del);
+      el.addEventListener("pointerdown", (event) => startEntryDrag(event, entry, el, canvas));
+      canvas.appendChild(el);
+    });
+    wrap.appendChild(canvas);
+
+    entries.forEach(entry => {
+      const capLabel = document.createElement("label");
+      capLabel.innerText = "Notiz";
       const capInput = document.createElement("textarea");
-      capInput.className = "workshop-row-caption";
-      capInput.placeholder = "Kommentar zu diesem Foto";
       capInput.value = entry.caption || "";
       capInput.addEventListener("change", async () => {
         entry.caption = capInput.value;
         await api("/api/process/" + entry.id, {
           method: "PUT",
-          body: JSON.stringify({ image_url: entry.image_url, caption: entry.caption })
+          body: JSON.stringify({ image_url: entry.image_url, caption: entry.caption, x: entry.x, y: entry.y, kind })
         });
-        status("Kommentar gespeichert.");
+        status("Notiz gespeichert.");
       });
-      const del = document.createElement("button");
-      del.className = "entry-delete";
-      del.innerText = "×";
-      del.addEventListener("click", async () => {
-        if (!confirm("Dieses Prozessfoto löschen?")) return;
-        await api("/api/process/" + entry.id, { method: "DELETE" });
-        entries = entries.filter(e => e.id !== entry.id);
-        render();
-      });
-      row.append(thumb, capInput, del);
-      box.appendChild(row);
+      capLabel.appendChild(capInput);
+      wrap.appendChild(capLabel);
     });
 
-    const form = document.createElement("div");
-    form.className = "entry-form";
-    const fileLabel = document.createElement("label");
-    fileLabel.innerText = "Neues Prozessfoto";
-    const fileInput = document.createElement("input");
-    fileInput.type = "file"; fileInput.accept = "image/*";
-    fileLabel.appendChild(fileInput);
-    const capLabel = document.createElement("label");
-    capLabel.innerText = "Kommentar dazu (optional)";
-    const capInput = document.createElement("textarea");
-    capLabel.appendChild(capInput);
-    const addButton = document.createElement("button");
-    addButton.className = "entry-add-button";
-    addButton.innerText = "+ Foto hinzufügen";
-    addButton.addEventListener("click", async () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      status("Foto wird hochgeladen...");
-      try {
-        const uploaded = await uploadFile(file);
-        const created = await api("/api/steps/" + step.id + "/process", {
-          method: "POST",
-          body: JSON.stringify({ image_url: uploaded.url, caption: capInput.value })
-        });
-        entries.push({ id: created.id, image_url: uploaded.url, caption: capInput.value });
-        render();
-        status("Foto hinzugefügt.");
-      } catch (error) {
-        console.error(error);
-        status("Upload fehlgeschlagen.");
+    const uploadLabel = document.createElement("label");
+    uploadLabel.innerText = "Neue Fotos (Mehrfachauswahl möglich)";
+    const uploadInput = document.createElement("input");
+    uploadInput.type = "file"; uploadInput.accept = "image/*"; uploadInput.multiple = true;
+    uploadLabel.appendChild(uploadInput);
+    uploadInput.addEventListener("change", async () => {
+      const files = [...uploadInput.files];
+      if (!files.length) return;
+      for (const file of files) {
+        status("Foto wird hochgeladen...");
+        try {
+          const uploaded = await uploadFile(file);
+          const x = 0.25 + Math.random() * 0.5, y = 0.25 + Math.random() * 0.5;
+          const created = await api("/api/steps/" + step.id + "/process", {
+            method: "POST",
+            body: JSON.stringify({ image_url: uploaded.url, caption: "", x, y, kind })
+          });
+          entries.push({ id: created.id, image_url: uploaded.url, caption: "", x, y, kind });
+        } catch (error) {
+          console.error(error);
+          status("Upload fehlgeschlagen.");
+        }
       }
+      render();
+      status("Fotos hinzugefügt.");
     });
-    form.append(fileLabel, capLabel, addButton);
-    box.appendChild(form);
+    wrap.appendChild(uploadLabel);
   }
 
   return {
-    el: box,
+    el: wrap,
     load: async () => {
       if (loaded) return;
       loaded = true;
       try {
-        entries = await api("/api/steps/" + step.id + "/process");
+        const all = await api("/api/steps/" + step.id + "/process");
+        entries = all.filter(e => (e.kind || "change") === kind);
         render();
       } catch (error) {
         console.error(error);
-        box.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
+        wrap.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
       }
+    }
+  };
+}
+
+function buildWorkshopBox(step) {
+  const box = document.createElement("div");
+  box.className = "entries-box";
+
+  const title = document.createElement("div");
+  title.className = "entries-title";
+  title.innerText = "Werkstatt-Seite";
+  box.appendChild(title);
+
+  const commentLabel = document.createElement("label");
+  commentLabel.innerText = "Kommentar zum Fundstück";
+  const commentInput = document.createElement("textarea");
+  commentInput.value = step.item_comment || "";
+  commentInput.addEventListener("change", async () => {
+    step.item_comment = commentInput.value;
+    await persistStep(step);
+    status("Kommentar gespeichert.");
+  });
+  commentLabel.appendChild(commentInput);
+  box.appendChild(commentLabel);
+
+  const rawBoxWrap = buildProcessCanvas(step, "raw", "Unbearbeitete Pieces", "Rohfotos frei platzieren (ziehen).");
+  const changeBoxWrap = buildProcessCanvas(step, "change", "Änderungen", "Bearbeitungs-/Prozessfotos frei platzieren (ziehen).");
+  box.append(rawBoxWrap.el, changeBoxWrap.el);
+
+  // Fertiges Stück — separat hochgeladen, erscheint später im Look Builder.
+  const finishedTitle = document.createElement("div");
+  finishedTitle.className = "entries-title";
+  finishedTitle.innerText = "Fertiges Stück (für Look Builder)";
+  box.appendChild(finishedTitle);
+
+  if (step.finished_piece_url) {
+    const preview = document.createElement("img");
+    preview.className = "workshop-row-thumb";
+    preview.style.width = "80px"; preview.style.height = "80px"; preview.style.marginBottom = "8px";
+    preview.src = step.finished_piece_url;
+    box.appendChild(preview);
+  }
+
+  const finishedCategoryLabel = document.createElement("label");
+  finishedCategoryLabel.innerText = "Kleidungs-Kategorie";
+  const finishedCategorySelect = document.createElement("select");
+  finishedCategorySelect.innerHTML = Object.keys(LOOK_CATEGORY_LABELS).map(key =>
+    '<option value="' + key + '"' + (step.finished_piece_category === key ? " selected" : "") + '>' + LOOK_CATEGORY_LABELS[key] + '</option>'
+  ).join("");
+  finishedCategorySelect.addEventListener("change", async () => {
+    step.finished_piece_category = finishedCategorySelect.value;
+    await persistStep(step);
+    status("Kategorie gespeichert.");
+  });
+  finishedCategoryLabel.appendChild(finishedCategorySelect);
+  box.appendChild(finishedCategoryLabel);
+
+  const finishedUploadLabel = document.createElement("label");
+  finishedUploadLabel.innerText = "Fertiges Stück hochladen";
+  const finishedUploadInput = document.createElement("input");
+  finishedUploadInput.type = "file"; finishedUploadInput.accept = "image/*";
+  finishedUploadLabel.appendChild(finishedUploadInput);
+  finishedUploadInput.addEventListener("change", async () => {
+    const file = finishedUploadInput.files[0];
+    if (!file) return;
+    status("Bild wird hochgeladen...");
+    try {
+      const uploaded = await uploadFile(file);
+      step.finished_piece_url = uploaded.url;
+      if (!step.finished_piece_category) step.finished_piece_category = Object.keys(LOOK_CATEGORY_LABELS)[0];
+      await persistStep(step);
+      status("Fertiges Stück gespeichert.");
+    } catch (error) {
+      console.error(error);
+      status("Upload fehlgeschlagen.");
+    }
+  });
+  box.appendChild(finishedUploadLabel);
+
+  return {
+    el: box,
+    load: async () => {
+      await Promise.all([rawBoxWrap.load(), changeBoxWrap.load()]);
     }
   };
 }
