@@ -95,6 +95,23 @@ input[type=file] { display: block; width: 100%; font-size: 9px; color: white; ma
 .entry-form label { margin-bottom: 8px; }
 .entry-add-button { width: 100%; margin-top: 4px; padding: 7px; border: 0; border-radius: 4px; background: white; color: black; font-size: 10px; }
 
+.workshop-canvas {
+  position: relative; height: 200px; margin-bottom: 13px; border-radius: 6px;
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 10px, rgba(255,255,255,.04) 10px 20px);
+  border: 1px dashed rgba(255,255,255,.18); overflow: hidden;
+}
+.workshop-photo {
+  position: absolute; width: 56px; height: 56px; transform: translate(-50%, -50%);
+  cursor: grab; touch-action: none; border-radius: 4px; overflow: visible;
+}
+.workshop-photo:active { cursor: grabbing; }
+.workshop-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; pointer-events: none; box-shadow: 0 4px 10px rgba(0,0,0,.5); }
+.workshop-photo-remove {
+  position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%;
+  background: #000; color: #fff; border: 1px solid rgba(255,255,255,.3); font-size: 10px; line-height: 14px;
+  text-align: center; cursor: pointer;
+}
+
 #dialog { position: absolute; z-index: 100; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
 #dialog.active { display: flex; }
 .dialog-box { width: 340px; max-width: 90vw; padding: 25px; border-radius: 8px; background: #111; color: white; }
@@ -507,6 +524,158 @@ function buildItemsBox(step) {
   };
 }
 
+// Werkstatt-Editor für Lost&Found-3D-Scan-Schritte: ersetzt die normale
+// Found-Items-Box durch einen Fundstück-Kommentar plus frei platzierbare,
+// beschriftete Prozessfotos (dieselbe Zieh-Technik wie im Look Builder).
+async function persistStep(step) {
+  await api("/api/steps/" + step.id, {
+    method: "PUT",
+    body: JSON.stringify({
+      media_type: step.media_type, media_url: step.media_url, text_overlay: step.text_overlay,
+      audio_url: step.audio_url, transition: step.transition, category: step.category,
+      lng: step.lng, lat: step.lat, item_comment: step.item_comment
+    })
+  });
+}
+
+function buildWorkshopBox(step) {
+  const box = document.createElement("div");
+  box.className = "entries-box";
+  box.innerHTML = '<div class="hint">Wird beim Öffnen geladen ...</div>';
+  let loaded = false;
+  let entries = [];
+
+  function startEntryDrag(event, entry, el, canvas) {
+    event.preventDefault();
+    event.stopPropagation();
+    function onMove(moveEvent) {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (moveEvent.clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (moveEvent.clientY - rect.top) / rect.height));
+      el.style.left = (x * 100) + "%"; el.style.top = (y * 100) + "%";
+      entry.x = x; entry.y = y;
+    }
+    async function onUp() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      await api("/api/process/" + entry.id, {
+        method: "PUT",
+        body: JSON.stringify({ image_url: entry.image_url, caption: entry.caption, x: entry.x, y: entry.y })
+      });
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }
+
+  function render() {
+    box.innerHTML = "";
+    const title = document.createElement("div");
+    title.className = "entries-title";
+    title.innerText = "Werkstatt-Seite: Kommentar & Bearbeitungsprozess";
+    box.appendChild(title);
+
+    const commentLabel = document.createElement("label");
+    commentLabel.innerText = "Kommentar zum Fundstück";
+    const commentInput = document.createElement("textarea");
+    commentInput.value = step.item_comment || "";
+    commentInput.addEventListener("change", async () => {
+      step.item_comment = commentInput.value;
+      await persistStep(step);
+      status("Kommentar gespeichert.");
+    });
+    commentLabel.appendChild(commentInput);
+    box.appendChild(commentLabel);
+
+    const canvasHint = document.createElement("div");
+    canvasHint.className = "hint";
+    canvasHint.style.marginBottom = "8px";
+    canvasHint.innerText = "Prozessfotos frei auf der Fläche platzieren (ziehen).";
+    box.appendChild(canvasHint);
+
+    const canvas = document.createElement("div");
+    canvas.className = "workshop-canvas";
+    entries.forEach(entry => {
+      const el = document.createElement("div");
+      el.className = "workshop-photo";
+      el.style.left = (entry.x * 100) + "%";
+      el.style.top = (entry.y * 100) + "%";
+      const img = document.createElement("img");
+      img.src = entry.image_url;
+      const del = document.createElement("div");
+      del.className = "workshop-photo-remove";
+      del.innerText = "×";
+      del.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        await api("/api/process/" + entry.id, { method: "DELETE" });
+        entries = entries.filter(e => e.id !== entry.id);
+        render();
+      });
+      el.append(img, del);
+      el.addEventListener("pointerdown", (event) => startEntryDrag(event, entry, el, canvas));
+      canvas.appendChild(el);
+    });
+    box.appendChild(canvas);
+
+    entries.forEach(entry => {
+      const capLabel = document.createElement("label");
+      capLabel.innerText = "Bildunterschrift";
+      const capInput = document.createElement("textarea");
+      capInput.value = entry.caption || "";
+      capInput.addEventListener("change", async () => {
+        entry.caption = capInput.value;
+        await api("/api/process/" + entry.id, {
+          method: "PUT",
+          body: JSON.stringify({ image_url: entry.image_url, caption: entry.caption, x: entry.x, y: entry.y })
+        });
+        status("Bildunterschrift gespeichert.");
+      });
+      capLabel.appendChild(capInput);
+      box.appendChild(capLabel);
+    });
+
+    const uploadLabel = document.createElement("label");
+    uploadLabel.innerText = "Neues Prozessfoto";
+    const uploadInput = document.createElement("input");
+    uploadInput.type = "file"; uploadInput.accept = "image/*";
+    uploadLabel.appendChild(uploadInput);
+    uploadInput.addEventListener("change", async () => {
+      const file = uploadInput.files[0];
+      if (!file) return;
+      status("Foto wird hochgeladen...");
+      try {
+        const uploaded = await uploadFile(file);
+        const x = 0.3 + Math.random() * 0.4, y = 0.3 + Math.random() * 0.4;
+        const created = await api("/api/steps/" + step.id + "/process", {
+          method: "POST",
+          body: JSON.stringify({ image_url: uploaded.url, caption: "", x, y })
+        });
+        entries.push({ id: created.id, image_url: uploaded.url, caption: "", x, y });
+        render();
+        status("Foto hinzugefügt.");
+      } catch (error) {
+        console.error(error);
+        status("Upload fehlgeschlagen.");
+      }
+    });
+    box.appendChild(uploadLabel);
+  }
+
+  return {
+    el: box,
+    load: async () => {
+      if (loaded) return;
+      loaded = true;
+      try {
+        entries = await api("/api/steps/" + step.id + "/process");
+        render();
+      } catch (error) {
+        console.error(error);
+        box.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
+      }
+    }
+  };
+}
+
 /* ===== TIMELINE-SCHRITTE ===== */
 
 function buildTimelineStep(step, index, total, moveStep, deleteStep) {
@@ -583,6 +752,20 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   textLabel.appendChild(textInput);
 
   const itemsBoxWrap = buildItemsBox(step);
+  const workshopBoxWrap = buildWorkshopBox(step);
+
+  function isWorkshopStep() {
+    return step.category === "lost_and_found" && step.media_type === "model";
+  }
+  function updateEditorVisibility() {
+    const workshop = isWorkshopStep();
+    workshopBoxWrap.el.style.display = workshop ? "block" : "none";
+    itemsBoxWrap.el.style.display = workshop ? "none" : "block";
+  }
+  function loadVisibleEditor() {
+    if (isWorkshopStep()) workshopBoxWrap.load(); else itemsBoxWrap.load();
+  }
+  updateEditorVisibility();
 
   const actions = document.createElement("div");
   actions.className = "actions";
@@ -594,36 +777,33 @@ function buildTimelineStep(step, index, total, moveStep, deleteStep) {
   del.innerText = "Löschen"; del.className = "delete";
   actions.append(up, down, del);
 
-  body.append(typeLabel, categoryLabel, positionBox, mediaLabel, textLabel, itemsBoxWrap.el, actions);
+  body.append(typeLabel, categoryLabel, positionBox, mediaLabel, textLabel, itemsBoxWrap.el, workshopBoxWrap.el, actions);
   card.appendChild(body);
   wrap.appendChild(card);
 
   header.addEventListener("click", () => {
     wrap.classList.toggle("open");
-    if (wrap.classList.contains("open")) itemsBoxWrap.load();
+    if (wrap.classList.contains("open")) loadVisibleEditor();
   });
 
   async function persist() {
-    await api("/api/steps/" + step.id, {
-      method: "PUT",
-      body: JSON.stringify({
-        media_type: step.media_type, media_url: step.media_url,
-        text_overlay: step.text_overlay, audio_url: step.audio_url, transition: step.transition,
-        category: step.category, lng: step.lng, lat: step.lat
-      })
-    });
+    await persistStep(step);
     status("Schritt gespeichert.");
   }
 
   typeSelect.addEventListener("change", () => {
     step.media_type = typeSelect.value;
     nameWrap.innerText = stepLabel();
+    updateEditorVisibility();
+    if (wrap.classList.contains("open")) loadVisibleEditor();
     persist();
   });
   categorySelect.addEventListener("change", () => {
     step.category = categorySelect.value;
     nameWrap.innerText = stepLabel();
     positionBox.style.display = step.category !== "weg" ? "block" : "none";
+    updateEditorVisibility();
+    if (wrap.classList.contains("open")) loadVisibleEditor();
     persist();
     syncStepMarker(step);
   });

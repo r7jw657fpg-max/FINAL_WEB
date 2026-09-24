@@ -162,7 +162,7 @@ export default {
       return json({ ok: true });
     }
 
-    if (url.pathname.startsWith("/api/steps/") && !url.pathname.includes("/items")) {
+    if (url.pathname.startsWith("/api/steps/") && !url.pathname.includes("/items") && !url.pathname.includes("/process")) {
       const stepId = url.pathname.split("/api/steps/")[1];
 
       if (method === "PUT") {
@@ -170,11 +170,11 @@ export default {
         if (authError) return authError;
         const body = await request.json();
         await env.DB.prepare(
-          "UPDATE trace_steps SET media_type=?, media_url=?, text_overlay=?, audio_url=?, transition=?, category=?, lng=?, lat=? WHERE id=?"
+          "UPDATE trace_steps SET media_type=?, media_url=?, text_overlay=?, audio_url=?, transition=?, category=?, lng=?, lat=?, item_comment=? WHERE id=?"
         ).bind(
           body.media_type || "image", body.media_url || "", body.text_overlay || "",
           body.audio_url || "", body.transition || "cut", body.category || "weg",
-          body.lng || null, body.lat || null, stepId
+          body.lng || null, body.lat || null, body.item_comment || "", stepId
         ).run();
         return json({ ok: true });
       }
@@ -269,6 +269,46 @@ export default {
         const body = await request.json();
         await env.DB.prepare("UPDATE step_items SET image_url=?, note=?, category=?, cutout_url=? WHERE id=?")
           .bind(body.image_url || "", body.note || "", body.category || "", body.cutout_url || "", itemId).run();
+        return json({ ok: true });
+      }
+      return methodNotAllowed();
+    }
+
+    /* ===== WERKSTATT: Prozessfotos zu einem Lost&Found-3D-Scan-Schritt ===== */
+
+    if (url.pathname.match(/^\/api\/steps\/[^/]+\/process$/)) {
+      const stepId = url.pathname.split("/")[3];
+      if (method === "GET") {
+        const { results } = await env.DB.prepare("SELECT * FROM process_entries WHERE step_id = ? ORDER BY created_at").bind(stepId).all();
+        return json(results);
+      }
+      if (method === "POST") {
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
+        const body = await request.json();
+        const entryId = newId("process");
+        await env.DB.prepare(
+          "INSERT INTO process_entries (id, step_id, image_url, caption, x, y, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        ).bind(entryId, stepId, body.image_url || "", body.caption || "", body.x || 0.5, body.y || 0.5, new Date().toISOString()).run();
+        return json({ id: entryId }, 201);
+      }
+      return methodNotAllowed();
+    }
+
+    if (url.pathname.startsWith("/api/process/")) {
+      const entryId = url.pathname.split("/api/process/")[1];
+      if (method === "DELETE") {
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
+        await env.DB.prepare("DELETE FROM process_entries WHERE id = ?").bind(entryId).run();
+        return json({ ok: true });
+      }
+      if (method === "PUT") {
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
+        const body = await request.json();
+        await env.DB.prepare("UPDATE process_entries SET image_url=?, caption=?, x=?, y=? WHERE id=?")
+          .bind(body.image_url || "", body.caption || "", body.x || 0.5, body.y || 0.5, entryId).run();
         return json({ ok: true });
       }
       return methodNotAllowed();

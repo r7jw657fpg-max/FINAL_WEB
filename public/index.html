@@ -246,6 +246,46 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   border-radius: 20px; background: #fff; color: #000; font-size: 10px; font-weight: 700;
 }
 
+/* ===== Werkstatt-Seite: öffnet sich nach einem Lost&Found-3D-Scan.
+   Links der Scan + Kommentar, Mitte frei platzierte Prozessfotos,
+   rechts der (hierher umgehängte) Look Builder. ===== */
+#workshopView {
+  position: fixed; inset: 0; z-index: 70; display: none;
+  background: #060606; padding: 70px 30px 70px; gap: 24px;
+  opacity: 0; transition: opacity .5s ease;
+}
+#workshopView.active { display: flex; opacity: 1; }
+#workshopClose {
+  position: absolute; top: 16px; right: 20px; z-index: 5;
+  background: none; border: 0; color: #fff; font-size: 28px; cursor: pointer; opacity: .7;
+}
+#workshopClose:hover { opacity: 1; }
+
+.workshop-column { min-width: 0; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.workshop-column-scan { flex: 0 0 26%; }
+.workshop-column-process { flex: 1 1 auto; }
+.workshop-column-look { flex: 0 0 26%; }
+.workshop-column-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #fff; opacity: .5; }
+
+#workshopScanStage {
+  flex: 1 1 auto; min-height: 260px; position: relative;
+  background: rgba(255,255,255,.03); border-radius: 10px; overflow: hidden;
+}
+#workshopScanStage model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
+#workshopScanStage img { width: 100%; height: 100%; object-fit: contain; }
+.workshop-comment { color: #fff; font-weight: 300; font-size: 15px; line-height: 1.7; white-space: pre-wrap; opacity: .85; }
+
+.workshop-process-canvas { position: relative; flex: 1 1 auto; min-height: 320px; }
+.workshop-process-photo { position: absolute; width: 170px; transform: translate(-50%, -50%); text-align: center; }
+.workshop-process-photo img { width: 100%; border-radius: 8px; display: block; box-shadow: 0 10px 30px rgba(0,0,0,.5); cursor: pointer; }
+.workshop-process-caption { margin-top: 8px; font-size: 12px; color: #fff; opacity: .75; line-height: 1.5; }
+
+/* Look Builder eingebettet in der Werkstatt-Seite statt als schwebendes Panel */
+#lookBuilderPanel.embedded {
+  position: static; width: 100%; height: 100%; max-height: none;
+  opacity: 1 !important; transform: none !important; visibility: visible !important;
+}
+
 /* ===== Vintage-Video-Look: Korn, Scanlines, Vignette, Flackern =====
    Liegt bewusst NUR über der Karte (z-index knapp über #map), nicht über
    Marquee/Panels/Story/Lightbox — Nutzer-Medien bleiben unangetastet. */
@@ -383,6 +423,19 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   <div id="lookTray" class="look-tray"></div>
 </div>
 <button id="lookBuilderReopen">Look Builder <span id="lookBuilderCount">0</span></button>
+
+<div id="workshopView">
+  <button id="workshopClose">×</button>
+  <div class="workshop-column workshop-column-scan">
+    <div id="workshopScanStage"></div>
+    <div id="workshopComment" class="workshop-comment"></div>
+  </div>
+  <div class="workshop-column workshop-column-process">
+    <div class="workshop-column-label">Bearbeitungsprozess</div>
+    <div id="workshopProcessCanvas" class="workshop-process-canvas"></div>
+  </div>
+  <div class="workshop-column workshop-column-look" id="workshopLookColumn"></div>
+</div>
 
 <div class="marquee-bar marquee-bottom">
   <div class="marquee-track" data-marquee-text="CUTTING FROM MEMORY - CLOTHES INSPIRED BY THE PEOPLE AND STREETS OF ZURICH - FROM TRACES TO DESIGN - "></div>
@@ -1073,8 +1126,11 @@ function playStory(steps, index, route) {
       built.video.addEventListener("ended", () => playStory(steps, index + 1, route), { once: true });
     } else {
       storyNextButton.style.display = "block";
-      storyNextButton.innerText = index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter");
-      storyNextButton.onclick = () => playStory(steps, index + 1, route);
+      const isWorkshopStep = step.category === "lost_and_found" && step.media_type === "model";
+      storyNextButton.innerText = isWorkshopStep ? "Fundstück ansehen" : (index === 0 ? "Get moving" : (isLast ? "Ankommen" : "Weiter"));
+      storyNextButton.onclick = isWorkshopStep
+        ? () => openWorkshopView(step, () => playStory(steps, index + 1, route))
+        : () => playStory(steps, index + 1, route);
     }
 
     loadStepItems(step);
@@ -1303,6 +1359,78 @@ document.getElementById("lookBuilderClose").addEventListener("click", () => look
 lookBuilderReopen.addEventListener("click", () => lookBuilderPanel.classList.add("active"));
 
 renderLookBuilder();
+
+/* ===== WERKSTATT-SEITE =====
+   Öffnet sich nach dem Betrachten eines Lost&Found-3D-Scan-Schritts:
+   Scan + Kommentar links, frei platzierte Prozessfotos in der Mitte,
+   der (hierher umgehängte) Look Builder rechts. */
+const workshopView = document.getElementById("workshopView");
+const workshopScanStage = document.getElementById("workshopScanStage");
+const workshopComment = document.getElementById("workshopComment");
+const workshopProcessCanvas = document.getElementById("workshopProcessCanvas");
+const workshopLookColumn = document.getElementById("workshopLookColumn");
+let workshopCloseCallback = null;
+
+async function openWorkshopView(step, onClose) {
+  workshopCloseCallback = onClose;
+  workshopComment.innerText = step.item_comment || "";
+
+  workshopScanStage.innerHTML = "";
+  if (step.media_type === "model" && step.media_url) {
+    workshopScanStage.innerHTML =
+      '<model-viewer src="' + step.media_url + '" camera-controls auto-rotate exposure="1" zoom-sensitivity="2.5"></model-viewer>';
+  } else if (step.media_url) {
+    const img = document.createElement("img");
+    img.src = step.media_url;
+    workshopScanStage.appendChild(img);
+  }
+
+  lookBuilderPanel.classList.add("embedded");
+  workshopLookColumn.appendChild(lookBuilderPanel);
+
+  workshopProcessCanvas.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Lädt ...</div>';
+  workshopView.classList.add("active");
+
+  try {
+    const entries = await api("/api/steps/" + step.id + "/process");
+    workshopProcessCanvas.innerHTML = "";
+    if (!entries.length) {
+      workshopProcessCanvas.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Noch keine Prozessfotos.</div>';
+    } else {
+      entries.forEach(entry => {
+        const el = document.createElement("div");
+        el.className = "workshop-process-photo";
+        el.style.left = (entry.x * 100) + "%";
+        el.style.top = (entry.y * 100) + "%";
+        const img = document.createElement("img");
+        img.src = entry.image_url;
+        img.addEventListener("click", () => openLightbox(entry.image_url));
+        el.appendChild(img);
+        if (entry.caption) {
+          const caption = document.createElement("div");
+          caption.className = "workshop-process-caption";
+          caption.innerText = entry.caption;
+          el.appendChild(caption);
+        }
+        workshopProcessCanvas.appendChild(el);
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    workshopProcessCanvas.innerHTML = '<div style="opacity:.4;color:#fff;font-size:12px;">Fehler beim Laden.</div>';
+  }
+}
+
+function closeWorkshopView() {
+  workshopView.classList.remove("active");
+  lookBuilderPanel.classList.remove("embedded");
+  document.body.appendChild(lookBuilderPanel);
+  const callback = workshopCloseCallback;
+  workshopCloseCallback = null;
+  if (callback) callback();
+}
+
+document.getElementById("workshopClose").addEventListener("click", closeWorkshopView);
 
 async function loadData() {
   try {
