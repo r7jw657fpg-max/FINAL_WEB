@@ -9,7 +9,7 @@ async function saveSetting(key, value) {
 function imageSetting(label, key, settings) {
   const holder = h("div");
   function render() {
-    holder.replaceChildren(
+    holder.replaceChildren(...[
       settings[key] ? h("img", { class: "preview-img", src: settings[key], alt: "" }) : h("p", { class: "hint" }, "Nothing set."),
       h("input", {
         type: "file", accept: "image/*",
@@ -25,7 +25,7 @@ function imageSetting(label, key, settings) {
         class: "btn small", style: "margin-top:8px",
         onclick: async () => { settings[key] = ""; await saveSetting(key, ""); render(); },
       }, "Remove") : null
-    );
+    ].filter(Boolean));
   }
   render();
   return h("section", { class: "section" }, h("div", { class: "section-title" }, h("span", { class: "label" }, label)), holder);

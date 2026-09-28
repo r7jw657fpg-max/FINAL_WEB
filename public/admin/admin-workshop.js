@@ -56,7 +56,7 @@ function buildWorkshopCanvas(point, kind, label) {
       h("div", { class: "section-title" }, h("span", { class: "label" }, label)),
       h("p", { class: "hint" }, "Drag the photos to place them."),
       canvas,
-      captions,
+      ...captions,
       h("input", {
         type: "file", accept: "image/*", multiple: true,
         onchange: async (event) => {

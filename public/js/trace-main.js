@@ -66,7 +66,9 @@ async function initTrace() {
   document.getElementById("traceTitle").innerText = trace.title;
   preloadMedia(state.points);
 
+  showMessage("Loading map …");
   await TraceMap.create(state.points);
+  document.getElementById("message").hidden = true;
   state.points.forEach(point => TraceMap.addPin(point, (pointId) => openPoint(pointId)));
 
   const overviewButton = document.getElementById("overviewButton");

@@ -58,7 +58,7 @@ function buildMediaList(point) {
     });
 
     holder.replaceChildren(
-      rows,
+      ...rows,
       h("input", {
         type: "file", accept: "image/*,video/*,audio/*,.glb,.gltf", multiple: true,
         onchange: async (event) => {

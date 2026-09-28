@@ -46,7 +46,7 @@ export async function serveFile(request, env, key) {
   headers.set("Cache-Control", "public, max-age=31536000, immutable");
 
   let status = 200;
-  const range = object.range;
+  const range = request.headers.has("Range") ? object.range : undefined;
   if (range) {
     let start, end;
     if (range.suffix !== undefined) { start = object.size - range.suffix; end = object.size - 1; }
