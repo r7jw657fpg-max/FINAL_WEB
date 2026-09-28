@@ -129,7 +129,7 @@ async function showTrace(id) {
       });
       trace.points.push({
         id: created.id, trace_id: trace.id, category, title: "", text: "", item_comment: "",
-        lng, lat, sort_order: created.sort_order, media: [], workshop_count: 0,
+        lng, lat, sort_order: created.sort_order, media: [], links: [], workshop_count: 0,
       });
       refreshTraceMap();
       go(showPoint, created.id);

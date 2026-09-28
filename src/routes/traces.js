@@ -44,9 +44,20 @@ add("GET", "/api/traces/:id", async ({ env, params, url, isAdmin }) => {
     "SELECT m.* FROM point_media m JOIN points p ON p.id = m.point_id WHERE p.trace_id = ? ORDER BY m.sort_order, m.created_at"
   ).bind(params.id).all();
 
+  const { results: links } = await env.DB.prepare(
+    "SELECT * FROM point_links WHERE point_a IN (SELECT id FROM points WHERE trace_id = ?) ORDER BY created_at"
+  ).bind(params.id).all();
+
   const byPoint = {};
   media.forEach(m => { (byPoint[m.point_id] = byPoint[m.point_id] || []).push(m); });
-  points.forEach(p => { p.media = byPoint[p.id] || []; });
+  points.forEach(p => { p.media = byPoint[p.id] || []; p.links = []; });
+
+  // Ein Link gilt für beide Seiten: an beiden Punkten mit dem jeweils anderen als Ziel.
+  const pointById = Object.fromEntries(points.map(p => [p.id, p]));
+  links.forEach(link => {
+    if (pointById[link.point_a]) pointById[link.point_a].links.push({ id: link.id, point_id: link.point_b, note: link.note });
+    if (pointById[link.point_b]) pointById[link.point_b].links.push({ id: link.id, point_id: link.point_a, note: link.note });
+  });
   return json({ ...trace, points });
 });
 
@@ -65,6 +76,7 @@ add("PUT", "/api/traces/:id", async ({ env, params, body }) => {
 
 add("DELETE", "/api/traces/:id", async ({ env, params }) => {
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM point_links WHERE point_a IN (SELECT id FROM points WHERE trace_id = ?) OR point_b IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM workshop_entries WHERE point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id),
     env.DB.prepare("DELETE FROM point_media WHERE point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id),
     env.DB.prepare("DELETE FROM points WHERE trace_id = ?").bind(params.id),

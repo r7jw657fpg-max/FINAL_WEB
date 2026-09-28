@@ -6,6 +6,7 @@ import "./routes/settings.js";
 import "./routes/traces.js";
 import "./routes/points.js";
 import "./routes/media.js";
+import "./routes/links.js";
 
 export default {
   async fetch(request, env) {

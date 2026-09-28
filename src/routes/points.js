@@ -52,6 +52,7 @@ add("PUT", "/api/points/:id", async ({ env, params, body }) => {
 
 add("DELETE", "/api/points/:id", async ({ env, params }) => {
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM point_links WHERE point_a = ? OR point_b = ?").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM workshop_entries WHERE point_id = ?").bind(params.id),
     env.DB.prepare("DELETE FROM point_media WHERE point_id = ?").bind(params.id),
     env.DB.prepare("DELETE FROM points WHERE id = ?").bind(params.id),

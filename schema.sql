@@ -53,6 +53,17 @@ CREATE TABLE IF NOT EXISTS workshop_entries (
 );
 CREATE INDEX IF NOT EXISTS workshop_entries_point ON workshop_entries (point_id);
 
+-- Verlinkungen zwischen zwei Punkten desselben Traces; gilt für beide Seiten.
+CREATE TABLE IF NOT EXISTS point_links (
+  id TEXT PRIMARY KEY,
+  point_a TEXT NOT NULL,
+  point_b TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',             -- Begründung der Verlinkung
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS point_links_a ON point_links (point_a);
+CREATE INDEX IF NOT EXISTS point_links_b ON point_links (point_b);
+
 -- Seiteneinstellungen: intro (Header-Text), logo_url, background_url.
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,

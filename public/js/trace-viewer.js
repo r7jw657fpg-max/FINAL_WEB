@@ -189,10 +189,41 @@ const Viewer = (() => {
     body.append(grid);
   }
 
+  /* ----- Verlinkte Punkte: Vorschau + Begründung, Klick springt zum Punkt ----- */
+
+  function renderLinked() {
+    const list = el("div", "link-list");
+    point.links.forEach(link => {
+      const other = ctx.points.find(p => p.id === link.point_id);
+      if (!other) return;
+      const thumb = el("div", "link-thumb");
+      const firstImage = other.media.find(m => m.kind === "image");
+      if (firstImage) {
+        const img = el("img");
+        img.src = firstImage.url;
+        img.alt = "";
+        thumb.append(img);
+      } else {
+        thumb.innerHTML = categoryIconSvg(other.category, 32);
+      }
+      const info = el("div", "link-info");
+      info.append(el("div", "label", CATEGORY_LABELS[other.category]), el("div", "link-name", other.title || CATEGORY_LABELS[other.category]));
+      if (link.note) info.append(el("div", "link-note", link.note));
+      info.append(el("div", "link-open", "Open →"));
+
+      const card = el("button", "link-card");
+      card.append(thumb, info);
+      card.addEventListener("click", () => ctx.onSelect(other.id));
+      list.append(card);
+    });
+    body.append(list);
+  }
+
   /* ----- Aufbau ----- */
 
   function tabsFor(p) {
     const tabs = [{ id: "main", label: p.category === "commission" ? "Commission" : "Scan" }];
+    if (p.links && p.links.length) tabs.push({ id: "linked", label: "Linked" });
     const hasWorkshop = p.workshop_count > 0 || !!p.item_comment;
     if (p.category === "lost_and_found" || (p.category === "commission" && hasWorkshop)) {
       tabs.push({ id: "workshop", label: "Workshop" });
@@ -236,6 +267,7 @@ const Viewer = (() => {
     renderFoot();
     if (activeTab === "workshop") renderWorkshop();
     else if (activeTab === "library") renderLibrary();
+    else if (activeTab === "linked") renderLinked();
     else renderMain();
   }
 
