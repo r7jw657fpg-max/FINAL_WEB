@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cutting from Memory</title>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/trace.css">
+</head>
+<body class="trace-page">
+<div id="map"></div>
+
+<header class="trace-bar">
+  <a href="/" class="chip chip-home">Cutting from Memory</a>
+  <div id="traceTitle" class="chip chip-title"></div>
+  <span class="spacer"></span>
+  <button id="overviewButton" class="btn chip-btn" hidden>Overview</button>
+</header>
+
+<div id="hint" class="hint" hidden>Select a point on the map</div>
+<div id="message" class="message" hidden></div>
+
+<div id="overlay">
+  <div class="sheet" role="dialog" aria-modal="false">
+    <header class="sheet-head">
+      <div>
+        <div id="sheetKicker" class="label"></div>
+        <h2 id="sheetTitle"></h2>
+      </div>
+      <button id="sheetClose" class="sheet-close" aria-label="Close">×</button>
+    </header>
+    <nav id="sheetTabs" class="tabs"></nav>
+    <div id="sheetBody" class="sheet-body"></div>
+    <footer id="sheetFoot" class="sheet-foot"></footer>
+  </div>
+</div>
+
+<div id="lightbox">
+  <button id="lightboxClose" aria-label="Close">×</button>
+  <img id="lightboxImage" alt="">
+</div>
+
+<script src="/js/common.js"></script>
+<script src="/js/trace-viewer.js"></script>
+<script src="/js/trace-map.js"></script>
+<script src="/js/trace-main.js"></script>
+</body>
+</html>

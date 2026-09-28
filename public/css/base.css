@@ -1,0 +1,47 @@
+/* Gemeinsame Gestaltung: Schwarz/Weiß, dünne Linien, viel Weißraum. */
+:root {
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: #7a7a7a;
+  --line: rgba(0, 0, 0, .16);
+  --line-strong: #111111;
+  --soft: #f4f4f2;
+  --font: "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--font); font-weight: 300; color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; }
+button, input, textarea, select { font: inherit; color: inherit; }
+a { color: inherit; }
+
+.label {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+
+.btn {
+  display: inline-block; padding: 11px 20px; border: 1px solid var(--line-strong); border-radius: 0;
+  background: transparent; color: var(--fg); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; text-decoration: none; transition: background .15s ease, color .15s ease;
+}
+.btn:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
+.btn:disabled { opacity: .3; cursor: default; }
+.btn.primary { background: var(--fg); color: var(--bg); }
+.btn.primary:hover:not(:disabled) { background: transparent; color: var(--fg); }
+
+.logo-placeholder {
+  display: inline-block; font-size: 13px; letter-spacing: .3em; text-transform: uppercase;
+  line-height: 1.5; border: 1px solid var(--line-strong); padding: 10px 14px;
+}
+.logo-img { display: block; height: 44px; width: auto; }
+
+#lightbox {
+  position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, .96);
+}
+#lightbox.active { display: flex; }
+#lightbox img { max-width: 92vw; max-height: 92vh; display: block; }
+#lightboxClose {
+  position: absolute; top: 14px; right: 18px; background: none; border: 0; font-size: 30px;
+  line-height: 1; cursor: pointer;
+}

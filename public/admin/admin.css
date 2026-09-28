@@ -1,0 +1,75 @@
+/* Admin: gleiche reduzierte Sprache wie die Website (weiß, dünne Linien). */
+html, body { height: 100%; overflow: hidden; }
+#map { position: fixed; inset: 0; }
+
+#sidebar {
+  position: fixed; top: 14px; left: 14px; bottom: 14px; width: 400px; z-index: 10;
+  background: #fff; border: 1px solid var(--line-strong); display: flex; flex-direction: column;
+}
+.side-tabs { display: flex; gap: 20px; padding: 0 18px; border-bottom: 1px solid var(--line); }
+.side-tab {
+  background: none; border: 0; border-bottom: 1px solid transparent; margin-bottom: -1px; padding: 14px 0;
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); cursor: pointer;
+}
+.side-tab.active { color: var(--fg); border-bottom-color: var(--fg); }
+#view { flex: 1; min-height: 0; overflow-y: auto; padding: 18px; }
+#status { padding: 8px 18px; border-top: 1px solid var(--line); font-size: 10px; letter-spacing: .08em; color: var(--muted); min-height: 30px; }
+
+.view-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; }
+.view-title { font-size: 20px; margin: 0; }
+.link-back { background: none; border: 0; padding: 0; margin-bottom: 14px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); cursor: pointer; }
+.link-back:hover { color: var(--fg); }
+
+.btn.small { padding: 7px 11px; font-size: 10px; }
+.btn.danger { border-color: #b3261e; color: #b3261e; }
+.btn.danger:hover:not(:disabled) { background: #b3261e; color: #fff; }
+.btn.armed { background: var(--fg); color: #fff; }
+
+.section { padding: 16px 0; border-top: 1px solid var(--line); }
+.section:first-of-type { border-top: 0; padding-top: 0; }
+.section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.hint { font-size: 11px; line-height: 1.6; color: var(--muted); margin: 0 0 10px; }
+
+.field { display: block; margin-bottom: 12px; }
+.field .label { display: block; margin-bottom: 5px; }
+input[type=text], textarea, select {
+  width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 0; background: #fff; outline: none;
+}
+input[type=text]:focus, textarea:focus, select:focus { border-color: var(--fg); }
+textarea { min-height: 84px; resize: vertical; line-height: 1.5; }
+input[type=file] { font-size: 11px; width: 100%; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 12px; }
+
+.row { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--line); margin-bottom: 6px; background: #fff; }
+.row.clickable { cursor: pointer; }
+.row.clickable:hover { border-color: var(--fg); }
+.row .grow { flex: 1; min-width: 0; }
+.row-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-meta { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.thumb-box { width: 44px; height: 56px; flex: none; background: var(--soft); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--muted); overflow: hidden; }
+.thumb-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-box.square { height: 44px; }
+.icon-btn { background: none; border: 1px solid var(--line); width: 26px; height: 26px; line-height: 1; cursor: pointer; font-size: 12px; }
+.icon-btn:hover:not(:disabled) { border-color: var(--fg); }
+.icon-btn:disabled { opacity: .25; cursor: default; }
+.num { width: 22px; height: 22px; flex: none; border: 1px solid var(--fg); border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+
+.preview-img { display: block; max-width: 100%; max-height: 180px; border: 1px solid var(--line); margin-bottom: 8px; }
+.coords { font-size: 11px; color: var(--muted); margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+
+/* Werkstatt-Canvas: Fotos per Ziehen frei platzieren. */
+.ws-edit { position: relative; height: 240px; margin-bottom: 10px; border: 1px dashed var(--line-strong); overflow: hidden; background: var(--soft); }
+.ws-photo { position: absolute; width: 64px; transform: translate(-50%, -50%); cursor: grab; touch-action: none; }
+.ws-photo:active { cursor: grabbing; }
+.ws-photo img { width: 100%; display: block; pointer-events: none; border: 1px solid var(--line-strong); }
+.ws-photo .x { position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 1px solid var(--fg); font-size: 11px; line-height: 16px; text-align: center; cursor: pointer; }
+
+.admin-pin {
+  width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid var(--fg); background: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.admin-pin.start { box-shadow: 0 0 0 3px rgba(255, 255, 255, .92), 0 0 0 4px var(--fg); }
+.admin-pin.selected { background: var(--fg); color: #fff; }
+.admin-pin.selected svg { stroke: #fff; }
+
+@media (max-width: 720px) { #sidebar { width: auto; right: 14px; top: auto; height: 55vh; } }
