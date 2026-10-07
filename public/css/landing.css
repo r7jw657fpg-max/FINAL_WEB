@@ -7,11 +7,11 @@
 }
 
 .site-header {
-  max-width: 1400px; margin: 0 auto; padding: 40px 40px 36px;
-  display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 40px; align-items: start;
+  max-width: 1400px; margin: 0 auto; padding: 40px 40px 44px; min-height: 34vh;
+  display: flex; flex-direction: column; gap: 32px;
 }
 #intro {
-  margin: 0; max-width: 62ch; font-size: 17px; line-height: 1.7; white-space: pre-wrap;
+  margin: 0; max-width: 1120px; font-size: clamp(17px, 1.55vw, 22px); line-height: 1.7; white-space: pre-wrap;
 }
 
 .looks {
@@ -41,7 +41,7 @@
 .empty { text-align: center; color: var(--muted); padding: 60px 0; font-size: 13px; }
 
 @media (max-width: 720px) {
-  .site-header { grid-template-columns: 1fr; gap: 22px; padding: 24px 18px 26px; }
+  .site-header { gap: 22px; padding: 24px 18px 30px; min-height: 0; }
   #intro { font-size: 15px; }
   .looks { padding: 0 18px 60px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 14px; }
   .lens { width: 120px; height: 120px; }
