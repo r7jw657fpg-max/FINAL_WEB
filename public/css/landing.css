@@ -26,11 +26,11 @@ html.no-splash #splash { display: none; }
 .splash-layer img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; pointer-events: none; }
 .splash-layer .logo-placeholder-big { border: 0; padding: 0; text-align: center; }
 
-/* Die Lupe hat keinen sichtbaren Rand: ein weich auslaufender Kreis, in dem das Logo 2,5× vergrößert erscheint. */
+/* Die Lupe hat keinen Rahmen und keinen Verlauf: ein scharf geschnittener Kreis, in dem das Logo 2,5× vergrößert erscheint. */
 .splash-lens {
-  position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s ease;
-  -webkit-mask-image: radial-gradient(circle 115px at var(--x, -999px) var(--y, -999px), #000 0, #000 42%, transparent 100%);
-  mask-image: radial-gradient(circle 115px at var(--x, -999px) var(--y, -999px), #000 0, #000 42%, transparent 100%);
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  -webkit-mask-image: radial-gradient(circle 115px at var(--x, -999px) var(--y, -999px), #000 0, #000 114px, transparent 115px);
+  mask-image: radial-gradient(circle 115px at var(--x, -999px) var(--y, -999px), #000 0, #000 114px, transparent 115px);
 }
 .splash-lens.on { opacity: 1; }
 .splash-lens .splash-layer {
@@ -98,5 +98,5 @@ html.no-splash #splash { display: none; }
   .looks { padding: 0 18px 60px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 14px; }
   .lens { width: 120px; height: 120px; }
   .splash-layer { padding: 30vh 14vw; }
-  .splash-lens { -webkit-mask-image: radial-gradient(circle 90px at var(--x, -999px) var(--y, -999px), #000 0, #000 42%, transparent 100%); mask-image: radial-gradient(circle 90px at var(--x, -999px) var(--y, -999px), #000 0, #000 42%, transparent 100%); }
+  .splash-lens { -webkit-mask-image: radial-gradient(circle 90px at var(--x, -999px) var(--y, -999px), #000 0, #000 89px, transparent 90px); mask-image: radial-gradient(circle 90px at var(--x, -999px) var(--y, -999px), #000 0, #000 89px, transparent 90px); }
 }
