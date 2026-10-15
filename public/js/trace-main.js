@@ -75,7 +75,9 @@ async function initTrace() {
   overviewButton.hidden = false;
   overviewButton.addEventListener("click", goToOverview);
 
-  const start = state.points.find(p => p.category === "commission");
+  // Über die Trace-ID (?point=…) geht es direkt zum Kleidungsstück, sonst zum Commission-Startpunkt.
+  const wantedId = new URLSearchParams(location.search).get("point");
+  const start = state.points.find(p => p.id === wantedId) || state.points.find(p => p.category === "commission");
   if (start) {
     await TraceMap.flyIn(start);
     openPoint(start.id, { fly: false });

@@ -275,7 +275,7 @@ const Viewer = (() => {
     point = nextPoint;
     ctx = nextCtx;
     activeTab = "main";
-    kicker.innerText = CATEGORY_LABELS[point.category] || "";
+    kicker.innerText = (CATEGORY_LABELS[point.category] || "") + " · Trace-ID " + traceIdOf(point);
     title.innerText = point.title || "";
     render();
     overlay.classList.add("open");

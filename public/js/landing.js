@@ -88,19 +88,96 @@ function buildLook(trace) {
   return link;
 }
 
+// Logo als Bild, solange keins hochgeladen ist als Schrift-Platzhalter.
+function buildLogo(url, placeholderClass) {
+  if (url) {
+    const img = document.createElement("img");
+    img.className = "logo-img";
+    img.src = url;
+    img.alt = "Cutting from Memory";
+    img.draggable = false;
+    return img;
+  }
+  const text = document.createElement("span");
+  text.className = placeholderClass;
+  text.innerHTML = "Cutting<br>from<br>Memory";
+  return text;
+}
+
+/* ===== Start-Logo: bildschirmfüllend; Hover vergrößert (Lupe ohne sichtbaren Rand), Klick blendet aus ===== */
+
+function setupSplash(logoUrl) {
+  const splash = document.getElementById("splash");
+  if (document.documentElement.classList.contains("no-splash")) { splash.remove(); return; }
+
+  const lens = document.getElementById("splashLens");
+  document.getElementById("splashBase").append(buildLogo(logoUrl, "logo-placeholder-big"));
+  document.getElementById("splashZoom").append(buildLogo(logoUrl, "logo-placeholder-big"));
+  document.documentElement.classList.add("splash-open");
+
+  let startX = 0, startY = 0, moved = false;
+  const show = (x, y) => {
+    splash.style.setProperty("--x", x + "px");
+    splash.style.setProperty("--y", y + "px");
+    lens.classList.add("on");
+  };
+
+  splash.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "mouse") { show(event.clientX, event.clientY); return; }
+    if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10) moved = true;
+    show(event.clientX, event.clientY);
+  });
+  splash.addEventListener("pointerdown", (event) => {
+    startX = event.clientX; startY = event.clientY; moved = false;
+    if (event.pointerType !== "mouse") show(event.clientX, event.clientY);
+  });
+  const hide = () => lens.classList.remove("on");
+  splash.addEventListener("pointerleave", hide);
+  splash.addEventListener("pointerup", (event) => { if (event.pointerType !== "mouse") hide(); });
+  splash.addEventListener("pointercancel", hide);
+
+  function leave() {
+    if (splash.classList.contains("leaving")) return;
+    splash.classList.add("leaving");
+    document.documentElement.classList.remove("splash-open");
+    setTimeout(() => splash.remove(), 1000);
+  }
+  // Ein Wischen am Handy (Lupe bewegen) zählt nicht als Klick.
+  splash.addEventListener("click", () => { if (moved) { moved = false; return; } leave(); });
+  splash.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); leave(); }
+  });
+  splash.focus({ preventScroll: true });
+}
+
+/* ===== Trace-ID: die GPS-Nummer des Fundorts führt direkt zum Kleidungsstück ===== */
+
+function setupTraceIdForm() {
+  const form = document.getElementById("idForm");
+  const input = document.getElementById("idInput");
+  const error = document.getElementById("idError");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.hidden = true;
+    if (!input.value.trim()) return;
+    try {
+      const result = await api("/api/lookup?id=" + encodeURIComponent(input.value.trim()));
+      location.href = "/trace/" + encodeURIComponent(result.trace_id) + "?point=" + encodeURIComponent(result.point_id);
+    } catch (err) {
+      error.innerText = err.message;
+      error.hidden = false;
+    }
+  });
+}
+
 async function initLanding() {
+  setupTraceIdForm();
   const [settings, traces] = await Promise.all([api("/api/settings"), api("/api/traces")]);
 
+  setupSplash(settings.logo_url);
   const logo = document.getElementById("logo");
-  if (settings.logo_url) {
-    const logoImg = document.createElement("img");
-    logoImg.className = "logo-img";
-    logoImg.src = settings.logo_url;
-    logoImg.alt = "Logo";
-    logo.appendChild(logoImg);
-  } else {
-    logo.innerHTML = '<span class="logo-placeholder">Cutting<br>from<br>Memory</span>';
-  }
+  const headerLogo = buildLogo(settings.logo_url, "logo-placeholder");
+  logo.appendChild(headerLogo);
   document.getElementById("intro").innerText = settings.intro || "";
 
   if (settings.background_url) {
@@ -114,4 +191,8 @@ async function initLanding() {
   document.getElementById("empty").hidden = traces.length > 0;
 }
 
-initLanding().catch(error => console.error(error));
+initLanding().catch(error => {
+  console.error(error);
+  document.getElementById("splash").remove();
+  document.documentElement.classList.remove("splash-open");
+});

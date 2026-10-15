@@ -172,7 +172,7 @@ function showPoint(pointId) {
       field("Type", category),
       field("Title", title),
       field("Text", text),
-      h("div", { class: "coords" }, "GPS: " + point.lat.toFixed(6) + ", " + point.lng.toFixed(6) + " — drag the marker on the map to move it.")),
+      h("div", { class: "coords" }, "Trace-ID (GPS number of the find location): " + traceIdOf(point) + " — drag the marker on the map to move it; the ID changes with it.")),
     h("section", { class: "section" },
       h("div", { class: "section-title" }, h("span", { class: "label" }, "Media (images, video, 3D .glb, audio)")),
       buildMediaList(point)),

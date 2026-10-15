@@ -15,6 +15,8 @@ Cloudflare Worker (D1 + R2) mit statischem Frontend, ohne Build-Schritt.
 
 **Datenmodell:** ein Look ist ein Trace. Ein Trace hat Punkte (`commission` = Startpunkt, genau einer pro Trace; `lost_and_found`; `scan`), ein Punkt hat beliebig viele Medien (Bild, Video, 3D-Modell `.glb`, Audio) und optional Werkstatt-Fotos. Landing-Header (Intro, Logo, Hintergrund) steht in `settings`.
 
+**Trace-ID:** die GPS-Nummer des Fundorts eines Kleidungsstücks (`47.37810, 8.54620`, wird im Admin pro Punkt angezeigt und im Overlay der Website). Auf der Startseite führt sie über das Feld "Trace-ID" direkt zum Stück (`/api/lookup`, toleriert Komma/Punkt, vertauschte Reihenfolge und ~30 m Rundung). Das Start-Logo wird beim Besuch einmal gezeigt, nicht beim Zurückkehren von einer Unterseite.
+
 ## Lokal starten
 
 ```bash

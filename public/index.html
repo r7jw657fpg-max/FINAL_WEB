@@ -6,13 +6,31 @@
 <title>Cutting from Memory</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/landing.css">
+<script>
+  // Kommt man von einer Unterseite zurück, wird das Start-Logo übersprungen.
+  try {
+    if (document.referrer && new URL(document.referrer).origin === location.origin) {
+      document.documentElement.classList.add("no-splash");
+    }
+  } catch (e) {}
+</script>
 </head>
 <body>
 <div id="bg"></div>
 
+<div id="splash" role="button" tabindex="0" aria-label="Enter">
+  <div id="splashBase" class="splash-layer"></div>
+  <div id="splashLens" class="splash-lens"><div id="splashZoom" class="splash-layer"></div></div>
+</div>
+
 <header class="site-header">
   <a href="/" id="logo" aria-label="Home"></a>
   <p id="intro"></p>
+  <form id="idForm" class="id-form" autocomplete="off">
+    <input id="idInput" type="text" inputmode="decimal" placeholder="GPS number, e.g. 47.37810, 8.54620" aria-label="Trace-ID">
+    <button class="btn" type="submit">Trace-ID</button>
+  </form>
+  <p id="idError" class="id-error" hidden></p>
 </header>
 
 <main>

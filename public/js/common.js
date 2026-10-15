@@ -34,6 +34,11 @@ function categoryIconSvg(category, size = 18) {
   return open + '<path d="M16 14V9q0-2.5-2.5-2.5T11 9"/><path d="M16 14 7 24q-1.500 2 1 2h16q2.500 0 1-2z"/></svg>';
 }
 
+// Die Trace-ID eines Kleidungsstücks ist die GPS-Nummer seines Fundorts.
+function traceIdOf(point) {
+  return Number(point.lat).toFixed(5) + ", " + Number(point.lng).toFixed(5);
+}
+
 // Medientyp aus Dateityp bzw. Endung ableiten (.glb/.gltf = 3D-Modell).
 function mediaKindFromFile(file) {
   const name = (file.name || "").toLowerCase();
