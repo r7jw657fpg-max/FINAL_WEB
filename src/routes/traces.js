@@ -35,18 +35,33 @@ add("GET", "/api/traces/:id", async ({ env, params, url, isAdmin }) => {
   const trace = await env.DB.prepare("SELECT * FROM traces WHERE id = ?").bind(params.id).first();
   if (!trace || (!trace.visible && !asAdmin)) return json({ error: "Nicht gefunden" }, 404);
 
-  const { results: points } = await env.DB.prepare(
-    "SELECT p.*, (SELECT COUNT(*) FROM workshop_entries w WHERE w.point_id = p.id) AS workshop_count " +
-    "FROM points p WHERE p.trace_id = ? " +
-    "ORDER BY CASE p.category WHEN 'commission' THEN 0 ELSE 1 END, p.sort_order, p.created_at"
+  // Eigene Punkte plus in diesen Look eingebundene Fundorte aus anderen Looks.
+  const workshopCount = "(SELECT COUNT(*) FROM workshop_entries w WHERE w.point_id = p.id) AS workshop_count";
+  const { results: own } = await env.DB.prepare(
+    "SELECT p.*, " + workshopCount + " FROM points p WHERE p.trace_id = ?"
   ).bind(params.id).all();
-  const { results: media } = await env.DB.prepare(
-    "SELECT m.* FROM point_media m JOIN points p ON p.id = m.point_id WHERE p.trace_id = ? ORDER BY m.sort_order, m.created_at"
+  const { results: shared } = await env.DB.prepare(
+    "SELECT p.*, r.sort_order AS ref_order, " + workshopCount + ", t.title AS home_title " +
+    "FROM trace_point_refs r JOIN points p ON p.id = r.point_id JOIN traces t ON t.id = p.trace_id WHERE r.trace_id = ?"
   ).bind(params.id).all();
 
+  const points = [
+    ...own.map(p => ({ ...p, shared: false })),
+    ...shared.map(({ ref_order, home_title, ...p }) => ({
+      ...p, sort_order: ref_order, shared: true, home_trace_id: p.trace_id, ...(asAdmin ? { home_title } : {}),
+    })),
+  ].sort((a, b) =>
+    (a.category === "commission" ? 0 : 1) - (b.category === "commission" ? 0 : 1) ||
+    a.sort_order - b.sort_order || String(a.created_at).localeCompare(String(b.created_at)));
+
+  const traceIds = "SELECT id FROM points WHERE trace_id = ? UNION SELECT point_id FROM trace_point_refs WHERE trace_id = ?";
+  const { results: media } = await env.DB.prepare(
+    "SELECT * FROM point_media WHERE point_id IN (" + traceIds + ") ORDER BY sort_order, created_at"
+  ).bind(params.id, params.id).all();
+  // Nur Verlinkungen, bei denen beide Punkte in diesem Look vorkommen.
   const { results: links } = await env.DB.prepare(
-    "SELECT * FROM point_links WHERE point_a IN (SELECT id FROM points WHERE trace_id = ?) ORDER BY created_at"
-  ).bind(params.id).all();
+    "SELECT * FROM point_links WHERE point_a IN (" + traceIds + ") AND point_b IN (" + traceIds + ") ORDER BY created_at"
+  ).bind(params.id, params.id, params.id, params.id).all();
 
   const byPoint = {};
   media.forEach(m => { (byPoint[m.point_id] = byPoint[m.point_id] || []).push(m); });
@@ -55,9 +70,18 @@ add("GET", "/api/traces/:id", async ({ env, params, url, isAdmin }) => {
   // Ein Link gilt für beide Seiten: an beiden Punkten mit dem jeweils anderen als Ziel.
   const pointById = Object.fromEntries(points.map(p => [p.id, p]));
   links.forEach(link => {
-    if (pointById[link.point_a]) pointById[link.point_a].links.push({ id: link.id, point_id: link.point_b, note: link.note });
-    if (pointById[link.point_b]) pointById[link.point_b].links.push({ id: link.id, point_id: link.point_a, note: link.note });
+    pointById[link.point_a].links.push({ id: link.id, point_id: link.point_b, note: link.note });
+    pointById[link.point_b].links.push({ id: link.id, point_id: link.point_a, note: link.note });
   });
+
+  // Im Admin: wo ein eigener Punkt sonst noch vorkommt (für Hinweise und Warnungen beim Löschen).
+  if (asAdmin) {
+    const { results: usage } = await env.DB.prepare(
+      "SELECT r.point_id, t.id AS trace_id, t.title FROM trace_point_refs r JOIN traces t ON t.id = r.trace_id " +
+      "WHERE r.point_id IN (SELECT id FROM points WHERE trace_id = ?)"
+    ).bind(params.id).all();
+    points.forEach(p => { p.shared_in = usage.filter(u => u.point_id === p.id).map(u => ({ trace_id: u.trace_id, title: u.title })); });
+  }
   return json({ ...trace, points });
 });
 
@@ -76,6 +100,7 @@ add("PUT", "/api/traces/:id", async ({ env, params, body }) => {
 
 add("DELETE", "/api/traces/:id", async ({ env, params }) => {
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM trace_point_refs WHERE trace_id = ? OR point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM point_links WHERE point_a IN (SELECT id FROM points WHERE trace_id = ?) OR point_b IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM workshop_entries WHERE point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id),
     env.DB.prepare("DELETE FROM point_media WHERE point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id),

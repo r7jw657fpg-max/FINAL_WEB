@@ -7,6 +7,7 @@ import "./routes/traces.js";
 import "./routes/points.js";
 import "./routes/media.js";
 import "./routes/links.js";
+import "./routes/shared.js";
 import "./routes/lookup.js";
 
 export default {

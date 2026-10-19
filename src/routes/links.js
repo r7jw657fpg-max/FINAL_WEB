@@ -6,10 +6,13 @@ add("POST", "/api/points/:id/links", async ({ env, params, body }) => {
   const targetId = str(data.target_id);
   if (!targetId || targetId === params.id) return json({ error: "Ungültiger Ziel-Punkt" }, 400);
 
-  const { results } = await env.DB.prepare("SELECT id, trace_id FROM points WHERE id IN (?, ?)").bind(params.id, targetId).all();
-  if (results.length !== 2 || results[0].trace_id !== results[1].trace_id) {
-    return json({ error: "Beide Punkte müssen im selben Trace liegen." }, 400);
-  }
+  // Beide Punkte brauchen mindestens einen gemeinsamen Look (eigener oder eingebundener Fundort).
+  const common = await env.DB.prepare(
+    "SELECT 1 AS x FROM (SELECT trace_id FROM points WHERE id = ?1 UNION SELECT trace_id FROM trace_point_refs WHERE point_id = ?1) a " +
+    "JOIN (SELECT trace_id FROM points WHERE id = ?2 UNION SELECT trace_id FROM trace_point_refs WHERE point_id = ?2) b " +
+    "ON a.trace_id = b.trace_id LIMIT 1"
+  ).bind(params.id, targetId).first();
+  if (!common) return json({ error: "Beide Punkte müssen im selben Trace liegen." }, 400);
   const existing = await env.DB.prepare(
     "SELECT id FROM point_links WHERE (point_a = ? AND point_b = ?) OR (point_a = ? AND point_b = ?)"
   ).bind(params.id, targetId, targetId, params.id).first();

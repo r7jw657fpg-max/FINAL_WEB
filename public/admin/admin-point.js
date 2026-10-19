@@ -147,10 +147,11 @@ function showPoint(pointId) {
   AdminMap.select(pointId);
   AdminMap.flyTo(point.lng, point.lat);
 
+  const sharedIn = point.shared_in || [];
   const commissionElsewhere = app.trace.points.some(p => p.category === "commission" && p.id !== point.id);
-  const category = h("select", {},
+  const category = h("select", { disabled: point.shared }, // eingebundene Punkte ändert man nur in ihrem Ursprungs-Look
     Object.keys(CATEGORY_LABELS).map(key => h("option", {
-      value: key, selected: key === point.category, disabled: key === "commission" && commissionElsewhere,
+      value: key, selected: key === point.category, disabled: key === "commission" && (commissionElsewhere || sharedIn.length > 0),
     }, CATEGORY_LABELS[key] + (key === "commission" ? " (start point, only one)" : ""))));
   category.addEventListener("change", async () => {
     if (await savePoint(point, { category: category.value })) { refreshTraceMap(); go(showPoint, pointId); }
@@ -168,6 +169,10 @@ function showPoint(pointId) {
   return h("div", {},
     h("button", { class: "link-back", onclick: () => go(showTrace, app.trace.id) }, "← " + app.trace.title),
     h("div", { class: "view-head" }, h("h2", { class: "view-title" }, point.title || CATEGORY_LABELS[point.category])),
+    point.shared ? h("p", { class: "hint" },
+      "Shared from “" + (point.home_title || "another look") + "”. It is the same point there: all edits, and moving the marker, apply in every look that uses it.") : null,
+    sharedIn.length ? h("p", { class: "hint" },
+      "Also used in: " + sharedIn.map(s => s.title).join(", ") + ". Edits apply there too.") : null,
     h("section", { class: "section" },
       field("Type", category),
       field("Title", title),
@@ -183,11 +188,22 @@ function showPoint(pointId) {
     hasWorkshop ? h("section", { class: "section" },
       field("Workshop comment", comment),
       buildWorkshopEditor(point)) : null,
-    h("section", { class: "section" },
-      h("button", {
+    h("section", { class: "section" }, point.shared
+      ? h("button", {
         class: "btn danger small",
         onclick: async () => {
-          if (!confirm("Delete this point with all its media?")) return;
+          if (!confirm("Remove this point from this look? It stays in “" + (point.home_title || "its own look") + "”.")) return;
+          await api("/api/traces/" + app.trace.id + "/shared/" + point.id, { method: "DELETE" });
+          app.trace.points = app.trace.points.filter(p => p.id !== point.id);
+          refreshTraceMap();
+          go(showTrace, app.trace.id);
+        },
+      }, "Remove from this look")
+      : h("button", {
+        class: "btn danger small",
+        onclick: async () => {
+          const warning = sharedIn.length ? "\n\nIt is also used in: " + sharedIn.map(s => s.title).join(", ") + ". It will disappear there too." : "";
+          if (!confirm("Delete this point with all its media?" + warning)) return;
           await api("/api/points/" + point.id, { method: "DELETE" });
           app.trace.points = app.trace.points.filter(p => p.id !== point.id);
           refreshTraceMap();

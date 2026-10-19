@@ -49,6 +49,38 @@ async function showLooks() {
   );
 }
 
+// Kurzer Hinweis in der Punktliste: eingebundener Fundort bzw. in welchen Looks der Punkt sonst vorkommt.
+function pointUsageNote(point) {
+  if (point.shared) return " · from " + (point.home_title || "another look");
+  if (point.shared_in && point.shared_in.length) return " · also in " + point.shared_in.map(s => s.title).join(", ");
+  return "";
+}
+
+// Fundorte aus anderen Looks, die hier zusätzlich eingebunden werden können (derselbe Punkt, kein Duplikat).
+function buildSharedPicker(trace) {
+  const holder = h("div", {}, h("p", { class: "hint" }, "Loading …"));
+  api("/api/shareable?trace_id=" + encodeURIComponent(trace.id)).then(list => {
+    if (!list.length) {
+      holder.replaceChildren(h("p", { class: "hint" }, "No Lost & Found points from other looks available yet."));
+      return;
+    }
+    holder.replaceChildren(...list.map(item => h("div", { class: "row" },
+      h("div", { class: "thumb-box square" }, item.thumb ? h("img", { src: item.thumb, alt: "" }) : "L&F"),
+      h("div", { class: "grow" },
+        h("div", { class: "row-title" }, item.title || "Untitled"),
+        h("div", { class: "row-meta" }, "From " + item.home_title)),
+      h("button", {
+        class: "btn small",
+        onclick: async () => {
+          await api("/api/traces/" + trace.id + "/shared", { method: "POST", body: JSON.stringify({ point_id: item.id }) });
+          setStatus("Point added to this look.");
+          go(showTrace, trace.id);
+        },
+      }, "Add"))));
+  }).catch(error => { console.error(error); holder.replaceChildren(h("p", { class: "hint" }, "Could not load.")); });
+  return holder;
+}
+
 function buildPointList() {
   const points = app.trace.points;
   const holder = h("div");
@@ -68,7 +100,7 @@ function buildPointList() {
       h("div", { class: "num" }, index + 1),
       h("div", { class: "grow" },
         h("div", { class: "row-title" }, point.title || "Untitled"),
-        h("div", { class: "row-meta" }, CATEGORY_LABELS[point.category])),
+        h("div", { class: "row-meta" }, CATEGORY_LABELS[point.category] + pointUsageNote(point))),
       h("button", { class: "icon-btn", disabled: isStart || index === 0 || afterStart, onclick: (e) => { e.stopPropagation(); move(index, -1); } }, "↑"),
       h("button", { class: "icon-btn", disabled: isStart || index === points.length - 1, onclick: (e) => { e.stopPropagation(); move(index, 1); } }, "↓")));
   });
@@ -129,7 +161,7 @@ async function showTrace(id) {
       });
       trace.points.push({
         id: created.id, trace_id: trace.id, category, title: "", text: "", item_comment: "",
-        lng, lat, sort_order: created.sort_order, media: [], links: [], workshop_count: 0,
+        lng, lat, sort_order: created.sort_order, media: [], links: [], workshop_count: 0, shared: false, shared_in: [],
       });
       refreshTraceMap();
       go(showPoint, created.id);
@@ -153,10 +185,16 @@ async function showTrace(id) {
         : "Start with the commission: click “Place point”, then click the map where the trace begins."),
       buildPointList()),
     h("section", { class: "section" },
+      h("div", { class: "section-title" }, h("span", { class: "label" }, "Use an existing Lost & Found point")),
+      h("p", { class: "hint" }, "Use a find location from another look here too. It is the same point: edits apply in every look that uses it."),
+      buildSharedPicker(trace)),
+    h("section", { class: "section" },
       h("button", {
         class: "btn danger small",
         onclick: async () => {
-          if (!confirm("Delete this look with all points and media?")) return;
+          const elsewhere = [...new Set(trace.points.flatMap(p => p.shared_in || []).map(s => s.title))];
+          const warning = elsewhere.length ? "\n\nPoints of this look are also used in: " + elsewhere.join(", ") + ". They will disappear there too." : "";
+          if (!confirm("Delete this look with all its own points and media?" + warning)) return;
           await api("/api/traces/" + trace.id, { method: "DELETE" });
           go(showLooks);
         },

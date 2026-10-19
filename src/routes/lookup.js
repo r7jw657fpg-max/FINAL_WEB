@@ -10,14 +10,27 @@ function parseNumbers(input) {
   return numbers.length >= 2 ? numbers.slice(0, 2) : null;
 }
 
+// Der Look, in dem das Stück gezeigt wird: bevorzugt sein Ursprungs-Look, sonst ein Look, der es einbindet.
+async function visibleTraceFor(env, point, isAdmin) {
+  const row = await env.DB.prepare(
+    "SELECT t.id FROM traces t WHERE (t.visible = 1 OR ?) " +
+    "AND (t.id = ? OR t.id IN (SELECT trace_id FROM trace_point_refs WHERE point_id = ?)) " +
+    "ORDER BY CASE WHEN t.id = ? THEN 0 ELSE 1 END, t.sort_order LIMIT 1"
+  ).bind(isAdmin ? 1 : 0, point.trace_id, point.id, point.trace_id).first();
+  return row ? row.id : null;
+}
+
 async function findPoint(env, lat, lng, isAdmin) {
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   const { results } = await env.DB.prepare(
-    "SELECT p.id, p.trace_id, p.lat, p.lng FROM points p JOIN traces t ON t.id = p.trace_id " +
-    "WHERE (t.visible = 1 OR ?) AND ABS(p.lat - ?) < ? AND ABS(p.lng - ?) < ?"
-  ).bind(isAdmin ? 1 : 0, lat, TOLERANCE, lng, TOLERANCE).all();
+    "SELECT id, trace_id, lat, lng FROM points WHERE ABS(lat - ?) < ? AND ABS(lng - ?) < ?"
+  ).bind(lat, TOLERANCE, lng, TOLERANCE).all();
   const distance = (p) => Math.abs(p.lat - lat) + Math.abs(p.lng - lng);
-  return results.sort((a, b) => distance(a) - distance(b))[0] || null;
+  for (const point of results.sort((a, b) => distance(a) - distance(b))) {
+    const traceId = await visibleTraceFor(env, point, isAdmin);
+    if (traceId) return { ...point, trace_id: traceId };
+  }
+  return null;
 }
 
 add("GET", "/api/lookup", async ({ env, url, isAdmin }) => {

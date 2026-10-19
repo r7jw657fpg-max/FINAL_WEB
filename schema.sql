@@ -28,6 +28,16 @@ CREATE TABLE IF NOT EXISTS points (
 );
 CREATE INDEX IF NOT EXISTS points_trace ON points (trace_id);
 
+-- Ein Lost-&-Found-Punkt kann in weiteren Looks eingebunden werden (er gehört weiter seinem Ursprungs-Look).
+CREATE TABLE IF NOT EXISTS trace_point_refs (
+  trace_id TEXT NOT NULL,
+  point_id TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,     -- Reihenfolge innerhalb des einbindenden Looks
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (trace_id, point_id)
+);
+CREATE INDEX IF NOT EXISTS trace_point_refs_point ON trace_point_refs (point_id);
+
 -- Medien eines Punkts (beliebig viele).
 CREATE TABLE IF NOT EXISTS point_media (
   id TEXT PRIMARY KEY,
