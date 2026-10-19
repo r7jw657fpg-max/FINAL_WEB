@@ -39,6 +39,8 @@ add("POST", "/api/traces/:id/shared", async ({ env, params, body }) => {
 add("DELETE", "/api/traces/:id/shared/:pointId", async ({ env, params }) => {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM trace_point_refs WHERE trace_id = ? AND point_id = ?").bind(params.id, params.pointId),
+    // Die eigenen Änderungen dieses Looks am Punkt gehen mit.
+    env.DB.prepare("DELETE FROM workshop_entries WHERE point_id = ? AND trace_id = ?").bind(params.pointId, params.id),
     // Verlinkungen zu Punkten, die nur in diesem Look liegen, gelten ohne den Punkt nicht mehr.
     env.DB.prepare(
       "DELETE FROM point_links WHERE (point_a = ? AND point_b IN (SELECT id FROM points WHERE trace_id = ?)) " +

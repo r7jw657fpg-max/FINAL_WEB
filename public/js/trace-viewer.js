@@ -144,7 +144,7 @@ const Viewer = (() => {
     body.append(el("div", "ws-empty", "Loading …"));
     const requested = point;
     try {
-      if (!workshopCache[requested.id]) workshopCache[requested.id] = await api("/api/points/" + requested.id + "/workshop");
+      if (!workshopCache[requested.id]) workshopCache[requested.id] = await api("/api/points/" + requested.id + "/workshop?trace_id=" + encodeURIComponent(ctx.traceId));
     } catch (error) {
       console.error(error);
       if (point === requested) { body.innerHTML = ""; body.append(el("div", "ws-empty", "Could not load the workshop.")); }
@@ -225,7 +225,8 @@ const Viewer = (() => {
     const tabs = [{ id: "main", label: p.category === "commission" ? "Commission" : "Scan" }];
     if (p.links && p.links.length) tabs.push({ id: "linked", label: "Linked" });
     const hasWorkshop = p.workshop_count > 0 || !!p.item_comment;
-    if (p.category === "lost_and_found" || (p.category === "commission" && hasWorkshop)) {
+    // Ein eingebundener Fundort zeigt die Werkstatt nur, wenn es dazu etwas gibt (unbearbeitete Fotos oder eigene Änderungen).
+    if ((p.category === "lost_and_found" && (!p.shared || hasWorkshop)) || (p.category === "commission" && hasWorkshop)) {
       tabs.push({ id: "workshop", label: "Workshop" });
     }
     if (p.category === "scan") tabs.push({ id: "library", label: "Scan library" });

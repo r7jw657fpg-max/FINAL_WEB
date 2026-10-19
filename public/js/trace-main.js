@@ -40,6 +40,7 @@ async function openPoint(id, { fly = true } = {}) {
   state.viewed.add(id);
   TraceMap.markViewed(id);
   Viewer.open(point, {
+    traceId: state.trace.id,
     points: state.points,
     viewed: state.viewed,
     next: nextPoint,

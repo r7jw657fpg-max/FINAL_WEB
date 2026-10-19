@@ -33,20 +33,30 @@ add("DELETE", "/api/media/:id", async ({ env, params }) => {
   return json({ ok: true });
 }, { admin: true });
 
-add("GET", "/api/points/:id/workshop", async ({ env, params }) => {
+// Welche "Changes" gelten? Im Ursprungs-Look des Punkts die ursprünglichen (''), in einem anderen Look, der den Punkt
+// einbindet, die eigenen dieses Looks. Die unbearbeiteten Fotos (raw) sind überall dieselben.
+async function workshopScope(env, pointId, traceId) {
+  if (!traceId) return "";
+  const point = await env.DB.prepare("SELECT trace_id FROM points WHERE id = ?").bind(pointId).first();
+  return !point || point.trace_id === traceId ? "" : traceId;
+}
+
+add("GET", "/api/points/:id/workshop", async ({ env, params, url }) => {
+  const scope = await workshopScope(env, params.id, url.searchParams.get("trace_id"));
   const { results } = await env.DB.prepare(
-    "SELECT * FROM workshop_entries WHERE point_id = ? ORDER BY created_at"
-  ).bind(params.id).all();
+    "SELECT * FROM workshop_entries WHERE point_id = ? AND (kind = 'raw' OR trace_id = ?) ORDER BY created_at"
+  ).bind(params.id, scope).all();
   return json(results);
 });
 
 add("POST", "/api/points/:id/workshop", async ({ env, params, body }) => {
   const data = await body();
   const kind = WORKSHOP_KINDS.includes(data.kind) ? data.kind : "change";
+  const scope = kind === "raw" ? "" : await workshopScope(env, params.id, str(data.trace_id));
   const id = newId("workshop");
   await env.DB.prepare(
-    "INSERT INTO workshop_entries (id, point_id, kind, image_url, caption, x, y, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-  ).bind(id, params.id, kind, str(data.image_url), str(data.caption), num(data.x, 0.5), num(data.y, 0.5), new Date().toISOString()).run();
+    "INSERT INTO workshop_entries (id, point_id, kind, trace_id, image_url, caption, x, y, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(id, params.id, kind, scope, str(data.image_url), str(data.caption), num(data.x, 0.5), num(data.y, 0.5), new Date().toISOString()).run();
   return json({ id }, 201);
 }, { admin: true });
 

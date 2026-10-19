@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS workshop_entries (
   id TEXT PRIMARY KEY,
   point_id TEXT NOT NULL,
   kind TEXT NOT NULL DEFAULT 'change',       -- raw (unbearbeitet) | change (Änderungen)
+  trace_id TEXT NOT NULL DEFAULT '',         -- '' = Ursprungs-Look des Punkts; sonst der Look, in dem ein eingebundener Punkt eigene Änderungen hat
   image_url TEXT NOT NULL,
   caption TEXT NOT NULL DEFAULT '',
   x REAL NOT NULL DEFAULT 0.5,               -- 0..1, Anteil der Canvas-Breite

@@ -17,7 +17,7 @@ Cloudflare Worker (D1 + R2) mit statischem Frontend, ohne Build-Schritt.
 
 **Trace-ID:** die GPS-Nummer des Fundorts eines Kleidungsstücks (`47.37810, 8.54620`, wird im Admin pro Punkt angezeigt und im Overlay der Website). Auf der Startseite führt sie über das Feld "Trace-ID" direkt zum Stück (`/api/lookup`, toleriert Komma/Punkt, vertauschte Reihenfolge und ~30 m Rundung). Das Start-Logo wird beim Besuch einmal gezeigt, nicht beim Zurückkehren von einer Unterseite.
 
-**Fundorte in mehreren Looks:** Ein Lost-&-Found-Punkt gehört seinem Ursprungs-Look und kann über `trace_point_refs` in beliebig viele weitere Looks eingebunden werden (Admin: im Look "Use an existing Lost & Found point"). Es ist derselbe Datensatz, Änderungen, Medien und Werkstatt gelten überall. Verlinkungen erscheinen nur in Looks, in denen beide Punkte vorkommen. Die Trace-ID führt in den Ursprungs-Look (oder, falls der versteckt ist, in einen Look, der den Punkt einbindet).
+**Fundorte in mehreren Looks:** Ein Lost-&-Found-Punkt gehört seinem Ursprungs-Look und kann über `trace_point_refs` in beliebig viele weitere Looks eingebunden werden (Admin: im Look "Use an existing Lost & Found point"). Es ist derselbe Datensatz: Scan/Medien, Text und die unbearbeiteten Werkstatt-Fotos ("Unprocessed") gelten überall. Die "Changes" der Werkstatt pflegt jeder Look individuell (`workshop_entries.trace_id`). Verlinkungen erscheinen nur in Looks, in denen beide Punkte vorkommen. Die Trace-ID führt in den Ursprungs-Look (oder, falls der versteckt ist, in einen Look, der den Punkt einbindet).
 
 ## Lokal starten
 

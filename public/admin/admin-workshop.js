@@ -63,7 +63,7 @@ function buildWorkshopCanvas(point, kind, label) {
           await uploadFiles(event.target.files, async (url) => {
             const x = 0.25 + Math.random() * 0.5, y = 0.25 + Math.random() * 0.5;
             const created = await api("/api/points/" + point.id + "/workshop", {
-              method: "POST", body: JSON.stringify({ kind, image_url: url, x, y }),
+              method: "POST", body: JSON.stringify({ kind, image_url: url, x, y, trace_id: app.trace.id }),
             });
             entries.push({ id: created.id, kind, image_url: url, caption: "", x, y });
           });
@@ -73,14 +73,17 @@ function buildWorkshopCanvas(point, kind, label) {
     );
   }
 
-  api("/api/points/" + point.id + "/workshop")
+  api("/api/points/" + point.id + "/workshop?trace_id=" + encodeURIComponent(app.trace.id))
     .then(all => { entries = all.filter(e => e.kind === kind); render(); })
     .catch(error => { console.error(error); wrap.innerText = "Could not load."; });
   return wrap;
 }
 
+// Bei einem eingebundenen Fundort sind die unbearbeiteten Fotos mit dem Original geteilt,
+// die Changes gehören nur zu diesem Look.
 function buildWorkshopEditor(point) {
+  const from = "“" + (point.home_title || "the original look") + "”";
   return h("div", {},
-    buildWorkshopCanvas(point, "raw", "Workshop — unprocessed pieces"),
-    buildWorkshopCanvas(point, "change", "Workshop — changes"));
+    buildWorkshopCanvas(point, "raw", point.shared ? "Workshop — unprocessed pieces (shared with " + from + ")" : "Workshop — unprocessed pieces"),
+    buildWorkshopCanvas(point, "change", point.shared ? "Workshop — changes (only in this look)" : "Workshop — changes"));
 }

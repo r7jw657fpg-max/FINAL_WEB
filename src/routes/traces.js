@@ -36,12 +36,15 @@ add("GET", "/api/traces/:id", async ({ env, params, url, isAdmin }) => {
   if (!trace || (!trace.visible && !asAdmin)) return json({ error: "Nicht gefunden" }, 404);
 
   // Eigene Punkte plus in diesen Look eingebundene Fundorte aus anderen Looks.
-  const workshopCount = "(SELECT COUNT(*) FROM workshop_entries w WHERE w.point_id = p.id) AS workshop_count";
+  const workshopCount = "(SELECT COUNT(*) FROM workshop_entries w WHERE w.point_id = p.id AND w.trace_id = '') AS workshop_count";
   const { results: own } = await env.DB.prepare(
     "SELECT p.*, " + workshopCount + " FROM points p WHERE p.trace_id = ?"
   ).bind(params.id).all();
+  // Bei eingebundenen Fundorten zählen die gemeinsamen unbearbeiteten Fotos plus die eigenen Änderungen dieses Looks.
+  const sharedWorkshopCount =
+    "(SELECT COUNT(*) FROM workshop_entries w WHERE w.point_id = p.id AND (w.kind = 'raw' OR w.trace_id = r.trace_id)) AS workshop_count";
   const { results: shared } = await env.DB.prepare(
-    "SELECT p.*, r.sort_order AS ref_order, " + workshopCount + ", t.title AS home_title " +
+    "SELECT p.*, r.sort_order AS ref_order, " + sharedWorkshopCount + ", t.title AS home_title " +
     "FROM trace_point_refs r JOIN points p ON p.id = r.point_id JOIN traces t ON t.id = p.trace_id WHERE r.trace_id = ?"
   ).bind(params.id).all();
 
@@ -102,7 +105,7 @@ add("DELETE", "/api/traces/:id", async ({ env, params }) => {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM trace_point_refs WHERE trace_id = ? OR point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM point_links WHERE point_a IN (SELECT id FROM points WHERE trace_id = ?) OR point_b IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
-    env.DB.prepare("DELETE FROM workshop_entries WHERE point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id),
+    env.DB.prepare("DELETE FROM workshop_entries WHERE trace_id = ? OR point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM point_media WHERE point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id),
     env.DB.prepare("DELETE FROM points WHERE trace_id = ?").bind(params.id),
     env.DB.prepare("DELETE FROM traces WHERE id = ?").bind(params.id),
