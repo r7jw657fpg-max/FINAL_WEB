@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f4f2">
 <title>Cutting from Memory</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/landing.css">
@@ -21,6 +22,7 @@
 <div id="splash" role="button" tabindex="0" aria-label="Enter">
   <div id="splashBase" class="splash-layer"></div>
   <div id="splashLens" class="splash-lens"><div id="splashZoom" class="splash-layer"></div></div>
+  <div class="splash-hint">Touch to magnify · tap to enter</div>
 </div>
 
 <header class="site-header">
@@ -34,6 +36,7 @@
 </header>
 
 <main>
+  <p class="touch-hint">Press and hold a look to magnify · tap to open</p>
   <div id="looks" class="looks"></div>
   <p id="empty" class="empty" hidden>No looks yet.</p>
 </main>

@@ -35,13 +35,21 @@ a { color: inherit; }
 }
 .logo-img { display: block; height: 44px; width: auto; }
 
+/* Touch: kein graues Aufblitzen beim Tippen, kein Doppeltipp-Zoom auf Bedienelementen. */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+button, a, input, select, textarea, [role="button"] { touch-action: manipulation; }
+
+/* Bildansicht: Tippen vergrößert (Verschieben per Wischen), nochmal Tippen verkleinert wieder. */
 #lightbox {
   position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, .96);
+  background: rgba(255, 255, 255, .96); overflow: auto; overscroll-behavior: contain;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 #lightbox.active { display: flex; }
-#lightbox img { max-width: 92vw; max-height: 92vh; display: block; }
+#lightbox img { max-width: 92vw; max-height: 92dvh; display: block; margin: auto; cursor: zoom-in; }
+#lightbox.zoomed { align-items: flex-start; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
+#lightbox.zoomed img { max-width: none; max-height: none; width: max(220vw, 1400px); cursor: zoom-out; }
 #lightboxClose {
-  position: absolute; top: 14px; right: 18px; background: none; border: 0; font-size: 30px;
-  line-height: 1; cursor: pointer;
+  position: fixed; top: max(10px, env(safe-area-inset-top)); right: 14px; z-index: 2; width: 44px; height: 44px;
+  background: rgba(255, 255, 255, .9); border: 1px solid var(--line); font-size: 26px; line-height: 1; cursor: pointer;
 }

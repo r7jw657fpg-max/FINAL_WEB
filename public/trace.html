@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <title>Cutting from Memory</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
@@ -14,7 +15,7 @@
 <div id="map"></div>
 
 <header class="trace-bar">
-  <a href="/" class="chip chip-home">Cutting from Memory</a>
+  <a href="/" class="chip chip-home" aria-label="All looks"><span class="home-arrow">←</span><span class="home-text">Cutting from Memory</span></a>
   <div id="traceTitle" class="chip chip-title"></div>
   <span class="spacer"></span>
   <button id="overviewButton" class="btn chip-btn" hidden>Overview</button>
@@ -25,6 +26,7 @@
 
 <div id="overlay">
   <div class="sheet" role="dialog" aria-modal="false">
+    <div id="sheetGrip" class="sheet-grip" aria-hidden="true"><span></span></div>
     <header class="sheet-head">
       <div>
         <div id="sheetKicker" class="label"></div>

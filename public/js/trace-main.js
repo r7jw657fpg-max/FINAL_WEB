@@ -10,8 +10,10 @@ function showMessage(html) {
 
 function preloadMedia(points) {
   // Startpunkt zuerst; 3D-Modelle bewusst nicht vorladen (model-viewer streamt sie selbst).
+  // Am Handy (Mobilfunk, wenig Speicher) nur den Startpunkt vorladen, alles andere lädt beim Öffnen.
+  const lean = layoutMode() !== "window" || (navigator.connection && navigator.connection.saveData);
   const ordered = [...points].sort((a, b) => (a.category === "commission" ? -1 : 0) - (b.category === "commission" ? -1 : 0));
-  ordered.forEach(point => point.media.forEach(item => {
+  ordered.forEach(point => lean && point.category !== "commission" ? null : point.media.forEach(item => {
     if (item.kind === "image") new Image().src = item.url;
     else if (item.kind === "audio" && point.category === "commission") fetch(item.url).catch(() => {});
   }));

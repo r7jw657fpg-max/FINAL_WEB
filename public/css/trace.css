@@ -1,10 +1,11 @@
 /* Trace-Seite: Vollbild-Karte, Marker, Overlay ("Fenster im Fenster"). */
-.trace-page { height: 100vh; overflow: hidden; }
+.trace-page { height: 100vh; height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 #map { position: fixed; inset: 0; }
 
 .trace-bar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 20; display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px; pointer-events: none;
+  padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 12px max(14px, env(safe-area-inset-left));
+  pointer-events: none;
 }
 .trace-bar > * { pointer-events: auto; }
 .trace-bar .spacer { flex: 1; pointer-events: none; }
@@ -13,12 +14,15 @@
   letter-spacing: .16em; text-transform: uppercase; text-decoration: none; white-space: nowrap;
 }
 .chip-title:empty { display: none; }
+.home-arrow { display: none; }
+.sheet-grip { display: none; }
 .chip-btn { background: #fff; padding: 9px 14px; }
 
 .hint, .message {
   position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 15;
   background: #fff; border: 1px solid var(--line); padding: 10px 16px; font-size: 10px;
   letter-spacing: .14em; text-transform: uppercase; pointer-events: none;
+  width: max-content; max-width: calc(100vw - 32px);
 }
 .message { top: 50%; bottom: auto; transform: translate(-50%, -50%); pointer-events: auto; text-align: center; line-height: 1.8; }
 
@@ -45,6 +49,11 @@
 }
 .pin:hover .pin-tip { opacity: 1; }
 .mapboxgl-marker:hover { z-index: 5; }
+@media (hover: none) {
+  .pin-tip { display: none; }
+  .pin:hover { transform: none; }
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group { display: none; }
+}
 
 /* Overlay: Fenster im Fenster, die Karte bleibt rundherum sichtbar und bedienbar. */
 #overlay { position: fixed; inset: 0; z-index: 30; pointer-events: none; visibility: hidden; }
@@ -127,17 +136,72 @@
 .lib-tile:hover .lib-thumb { border-color: var(--fg); }
 .lib-name { margin-top: 8px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 
-@media (max-width: 720px) {
-  .trace-bar { padding: 8px; gap: 6px; }
-  .chip { padding: 8px 9px; letter-spacing: .1em; }
-  .sheet { inset: 54px 8px 8px; }
-  .sheet-head, .sheet-foot { padding: 14px 16px; }
-  .tabs { padding: 0 16px; }
-  .sheet-body { padding: 16px; }
-  .main-grid, .ws { grid-template-columns: 1fr; gap: 22px; }
+/* ===== Handy =====
+   Hochkant: Das Detailfenster ist ein Bottom-Sheet (Karte bleibt oben sichtbar), per Griff/Wischen größer,
+   kleiner oder weg. Querformat: Seitenleiste rechts. Alles mit großen Touch-Flächen und Safe-Area. */
+@media (max-width: 720px), (max-height: 500px) and (orientation: landscape) {
+  .trace-bar { gap: 8px; padding-bottom: 8px; }
+  .chip, .chip-btn { min-height: 40px; display: flex; align-items: center; padding: 0 12px; letter-spacing: .1em; }
+  .chip-home { width: 40px; padding: 0; justify-content: center; }
+  .home-arrow { display: inline; font-size: 18px; letter-spacing: 0; }
+  .home-text { display: none; }
+  .chip-title { max-width: 44vw; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 38px; }
+  .hint { bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .pin-wrap { width: 44px; height: 44px; }
+  .pin-wrap.start { width: 52px; height: 52px; }
+
+  .sheet-head { padding: 6px 8px 12px 16px; touch-action: none; }
+  .sheet-head h2 { font-size: 20px; margin-top: 4px; }
+  .sheet-close { width: 44px; height: 44px; font-size: 30px; flex: none; }
+  .tabs { padding: 0 16px; gap: 22px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; min-height: 46px; padding: 0; }
+  .sheet-body { padding: 14px 16px 18px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .sheet-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 10px; }
+  .sheet-foot .btn { flex: 1; min-height: 46px; padding: 0 12px; }
+
+  .main-grid, .ws { grid-template-columns: 1fr; gap: 20px; }
   .main-grid { height: auto; }
-  .stage { min-height: 46vh; flex: none; }
-  .ws-canvas { min-height: 56vh; }
+  .media-pane { min-height: 0; }
+  .stage { flex: none; min-height: 0; aspect-ratio: 4 / 3; max-height: 46dvh; width: 100%; }
+  .sheet.expanded .stage { aspect-ratio: 3 / 4; max-height: 62dvh; }
+  .thumb { width: 56px; height: 56px; }
+  .stage-hint {
+    position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 2; pointer-events: none;
+    background: rgba(255, 255, 255, .92); border: 1px solid var(--line); padding: 4px 9px; white-space: nowrap;
+    font-size: 9px; letter-spacing: .14em; text-transform: uppercase; transition: opacity .4s ease;
+  }
+  .stage-hint.gone { opacity: 0; }
+  .point-text { font-size: 15px; }
+
+  /* Werkstatt: als Liste statt frei platzierter Fläche, damit nichts übereinander liegt. */
+  .ws-canvas { min-height: 0; border: 0; margin-top: 8px; }
+  .ws-flow { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .ws-card img { width: 100%; display: block; border: 1px solid var(--line); }
+  .ws-card div { margin-top: 6px; font-size: 13px; line-height: 1.55; }
   .link-card { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
-  .sheet-foot .btn { padding: 11px 14px; }
+  .lib-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+}
+
+@media (max-width: 720px) {
+  .sheet {
+    inset: auto 0 0 0; height: 62dvh; border-width: 1px 0 0; transform: translateY(28px);
+    transition: opacity .3s ease, transform .3s ease, height .3s ease;
+  }
+  #overlay.open .sheet { transform: none; }
+  .sheet.expanded { height: calc(100dvh - 60px - env(safe-area-inset-top)); }
+  .sheet.dragging { transition: none; }
+  .sheet-grip { display: flex; justify-content: center; padding: 10px 0 4px; cursor: grab; touch-action: none; }
+  .sheet-grip span { width: 44px; height: 4px; border-radius: 2px; background: var(--line-strong); opacity: .35; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .sheet {
+    inset: 0 0 0 auto; width: min(58vw, 560px); height: auto; border-width: 0 0 0 1px; transform: translateX(28px);
+    padding-right: env(safe-area-inset-right);
+  }
+  #overlay.open .sheet { transform: none; }
+  .sheet-grip { display: none; }
+  .sheet-head { padding-top: max(8px, env(safe-area-inset-top)); }
+  .stage, .sheet.expanded .stage { aspect-ratio: 16 / 10; max-height: 52dvh; }
 }

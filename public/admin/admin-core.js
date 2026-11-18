@@ -30,9 +30,31 @@ async function convertHeicIfNeeded(file) {
   return new File([jpeg], file.name.replace(/\.hei[cf]$/i, ".jpg"), { type: "image/jpeg" });
 }
 
+// Handy-Fotos (3–6 MB, 4000 px) vor dem Upload auf max. 2400 px verkleinern: Besucher laden sie auf dem
+// Smartphone sonst über Mobilfunk. 2400 px reichen auch für die 3×-Lupe. Nur JPEG; PNG (Logos) bleibt unberührt.
+async function downscaleIfLarge(file) {
+  if (file.type !== "image/jpeg" || file.size < 1200000) return file;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.86));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name, { type: "image/jpeg" });
+  } catch (error) {
+    console.warn("Verkleinern nicht möglich, Original wird hochgeladen:", error);
+    return file;
+  }
+}
+
 // Lädt eine Datei direkt nach R2 (bzw. lokal über den Worker) und gibt die öffentliche URL zurück.
 async function uploadFile(file) {
   file = await convertHeicIfNeeded(file);
+  file = await downscaleIfLarge(file);
   const { uploadUrl, publicUrl } = await api("/api/upload-url", {
     method: "POST",
     body: JSON.stringify({ filename: file.name, contentType: file.type }),

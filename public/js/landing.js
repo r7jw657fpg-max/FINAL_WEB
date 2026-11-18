@@ -14,17 +14,22 @@ function applyLens(frame, img, lens, clientX, clientY, isTouch) {
   const x = Math.min(rect.width, Math.max(0, clientX - rect.left));
   const y = Math.min(rect.height, Math.max(0, clientY - rect.top));
 
-  lens.style.left = (x - radius) + "px";
+  // Die Lupe bleibt im sichtbaren Bildschirmbereich (sonst schneidet sie der Rand ab);
+  // vergrößert wird trotzdem genau die Stelle unter dem Finger bzw. der Maus.
+  const margin = 6;
+  const absLeft = Math.max(margin, Math.min(window.innerWidth - margin - radius * 2, rect.left + x - radius));
+  lens.style.left = (absLeft - rect.left) + "px";
   // Am Handy schwebt die Lupe über dem Finger, damit er sie nicht verdeckt.
   lens.style.top = (y - radius - (isTouch ? radius + 30 : 0)) + "px";
   lens.style.backgroundSize = (shownW * LENS_ZOOM) + "px " + (shownH * LENS_ZOOM) + "px";
   lens.style.backgroundPosition = (radius - (x - offsetX) * LENS_ZOOM) + "px " + (radius - (y - offsetY) * LENS_ZOOM) + "px";
   lens.classList.add("on");
+  if (isTouch) frame.classList.add("lens-touch");
 }
 
 function attachLens(link, frame, img, lens) {
   let timer = null, active = false, suppressClick = false, startX = 0, startY = 0;
-  const hide = () => lens.classList.remove("on");
+  const hide = () => { lens.classList.remove("on"); frame.classList.remove("lens-touch"); };
 
   frame.addEventListener("pointermove", (event) => {
     if (event.pointerType === "mouse") { applyLens(frame, img, lens, event.clientX, event.clientY, false); return; }

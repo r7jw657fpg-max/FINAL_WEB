@@ -9,6 +9,15 @@ const TraceMap = (() => {
     return { top: small ? 70 : 90, bottom: small ? 50 : 70, left: small ? 40 : 90, right: small ? 40 : 90 };
   }
 
+  // Raum, den das Detailfenster verdeckt: Der gewählte Punkt soll im sichtbaren Teil der Karte landen.
+  function sheetPadding() {
+    const zero = { top: 0, bottom: 0, left: 0, right: 0 };
+    const mode = layoutMode();
+    if (mode === "bottom") return { ...zero, top: 56, bottom: Math.round(window.innerHeight * 0.62) };
+    if (mode === "side") return { ...zero, right: Math.round(Math.min(window.innerWidth * 0.58, 560)) };
+    return zero;
+  }
+
   async function create(points) {
     mapboxgl.accessToken = MAPBOX_TOKEN;
     bounds = new mapboxgl.LngLatBounds();
@@ -35,6 +44,7 @@ const TraceMap = (() => {
     const firstImage = point.media.find(m => m.kind === "image");
     if (firstImage) {
       const img = document.createElement("img");
+      img.decoding = "async";
       img.src = firstImage.url;
       img.alt = "";
       button.append(img);
@@ -68,7 +78,7 @@ const TraceMap = (() => {
   }
 
   function flyToPoint(point, duration = 1100) {
-    map.flyTo({ center: [point.lng, point.lat], zoom: Math.max(map.getZoom(), 16.5), duration, essential: true });
+    map.flyTo({ center: [point.lng, point.lat], zoom: Math.max(map.getZoom(), 16.5), padding: sheetPadding(), duration, essential: true });
     return whenIdle(duration + 600);
   }
 
@@ -81,7 +91,7 @@ const TraceMap = (() => {
   // Verkürzter Einflug: aus der Übersicht heraus zum Startpunkt.
   function flyIn(startPoint) {
     map.setZoom(Math.max(2, map.getZoom() - 1.6));
-    map.flyTo({ center: [startPoint.lng, startPoint.lat], zoom: 17, duration: 2600, essential: true });
+    map.flyTo({ center: [startPoint.lng, startPoint.lat], zoom: 17, padding: sheetPadding(), duration: 2600, essential: true });
     return whenIdle(3400);
   }
 

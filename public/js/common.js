@@ -34,6 +34,14 @@ function categoryIconSvg(category, size = 18) {
   return open + '<path d="M16 14V9q0-2.5-2.5-2.5T11 9"/><path d="M16 14 7 24q-1.500 2 1 2h16q2.500 0 1-2z"/></svg>';
 }
 
+// Wie das Detailfenster angeordnet ist: "bottom" = Bottom-Sheet (Handy hochkant),
+// "side" = Seitenleiste (Handy quer), "window" = Fenster im Fenster (Tablet/Desktop).
+function layoutMode() {
+  if (window.matchMedia("(max-height: 500px) and (orientation: landscape)").matches) return "side";
+  if (window.matchMedia("(max-width: 720px)").matches) return "bottom";
+  return "window";
+}
+
 // Die Trace-ID eines Kleidungsstücks ist die GPS-Nummer seines Fundorts.
 function traceIdOf(point) {
   return Number(point.lat).toFixed(5) + ", " + Number(point.lng).toFixed(5);

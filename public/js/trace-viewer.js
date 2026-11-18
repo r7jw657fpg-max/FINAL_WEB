@@ -10,10 +10,44 @@ const Viewer = (() => {
   const lightbox = document.getElementById("lightbox");
   const lightboxImage = document.getElementById("lightboxImage");
 
+  const sheet = overlay.querySelector(".sheet");
   const workshopCache = {};
   let point = null;
   let ctx = null;
   let activeTab = "main";
+
+  function setExpanded(on) { sheet.classList.toggle("expanded", on); }
+
+  // Bottom-Sheet am Handy: am Griff oder Kopf ziehen. Hoch = größer, runter = kleiner,
+  // aus der kleinen Stellung weiter runter = zurück zur Karte. Antippen des Griffs wechselt die Größe.
+  (function setupSheetGestures() {
+    let active = false, moved = false, startY = 0, dy = 0, fromGrip = false;
+    [document.getElementById("sheetGrip"), sheet.querySelector(".sheet-head")].forEach(handle => {
+      handle.addEventListener("pointerdown", (event) => {
+        if (layoutMode() !== "bottom" || event.target.closest("button")) return;
+        active = true; moved = false; dy = 0; startY = event.clientY; fromGrip = handle.id === "sheetGrip";
+        try { handle.setPointerCapture(event.pointerId); } catch (e) { /* Zeiger schon weg: Geste läuft trotzdem weiter */ }
+        sheet.classList.add("dragging");
+      });
+      handle.addEventListener("pointermove", (event) => {
+        if (!active) return;
+        dy = event.clientY - startY;
+        if (Math.abs(dy) > 6) moved = true;
+        sheet.style.transform = dy > 0 ? "translateY(" + dy + "px)" : "";
+      });
+      const end = () => {
+        if (!active) return;
+        active = false;
+        sheet.classList.remove("dragging");
+        sheet.style.transform = "";
+        if (!moved) { if (fromGrip) setExpanded(!sheet.classList.contains("expanded")); return; }
+        if (dy < -50) setExpanded(true);
+        else if (dy > 50) { if (sheet.classList.contains("expanded")) setExpanded(false); else if (ctx) ctx.onBack(); }
+      };
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    });
+  })();
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -24,14 +58,21 @@ const Viewer = (() => {
 
   function openLightbox(url) {
     lightboxImage.src = url;
+    lightbox.classList.remove("zoomed");
+    lightbox.scrollTo(0, 0);
     lightbox.classList.add("active");
   }
   function closeLightbox() {
-    lightbox.classList.remove("active");
+    lightbox.classList.remove("active", "zoomed");
     lightboxImage.removeAttribute("src");
   }
   document.getElementById("lightboxClose").addEventListener("click", closeLightbox);
-  lightbox.addEventListener("click", (event) => { if (event.target === lightbox) closeLightbox(); });
+  lightboxImage.addEventListener("click", () => {
+    const zoomed = lightbox.classList.toggle("zoomed");
+    // Beim Vergrößern in die Bildmitte springen, nicht in die obere linke Ecke.
+    if (zoomed) requestAnimationFrame(() => lightbox.scrollTo((lightbox.scrollWidth - lightbox.clientWidth) / 2, (lightbox.scrollHeight - lightbox.clientHeight) / 2));
+  });
+  lightbox.addEventListener("click", (event) => { if (event.target === lightbox && !lightbox.classList.contains("zoomed")) closeLightbox(); });
 
   /* ----- Hauptansicht: Medien links, Text und Audio rechts ----- */
 
@@ -77,6 +118,15 @@ const Viewer = (() => {
         viewer.addEventListener("load", () => loading.remove());
         viewer.addEventListener("error", () => { loading.innerText = "Model could not be loaded"; });
         stage.append(viewer, loading);
+        if (layoutMode() !== "window") {
+          // Am Handy dreht seitliches Wischen das Modell, senkrechtes Wischen scrollt weiter das Fenster
+          // (sonst bliebe der Finger im Modell "hängen").
+          viewer.setAttribute("touch-action", "pan-y");
+          const hint = el("div", "stage-hint", "Swipe sideways to rotate · pinch to zoom");
+          stage.append(hint);
+          viewer.addEventListener("camera-change", (event) => { if (event.detail && event.detail.source === "user-interaction") hint.classList.add("gone"); }, { once: true });
+          setTimeout(() => hint.classList.add("gone"), 6000);
+        }
       }
       [...thumbs.children].forEach((thumb, i) => thumb.classList.toggle("active", i === index));
     }
@@ -122,13 +172,20 @@ const Viewer = (() => {
     const column = el("div", "ws-col");
     column.append(el("div", "label", label));
     if (comment) column.append(el("div", "ws-comment", comment));
-    const canvas = el("div", "ws-canvas");
+    const compact = layoutMode() !== "window";
+    // Am Handy als Liste in der Reihenfolge der Platzierung (oben nach unten, dann links nach rechts).
+    const ordered = compact ? [...entries].sort((a, b) => (a.y - b.y) || (a.x - b.x)) : entries;
+    const canvas = el("div", compact ? "ws-canvas ws-flow" : "ws-canvas");
     if (!entries.length) canvas.append(el("div", "ws-empty", "Nothing here yet."));
-    entries.forEach(entry => {
-      const item = el("div", "ws-item");
-      item.style.left = (entry.x * 100) + "%";
-      item.style.top = (entry.y * 100) + "%";
+    ordered.forEach(entry => {
+      const item = el("div", compact ? "ws-card" : "ws-item");
+      if (!compact) {
+        item.style.left = (entry.x * 100) + "%";
+        item.style.top = (entry.y * 100) + "%";
+      }
       const img = el("img");
+      img.loading = "lazy";
+      img.decoding = "async";
       img.src = entry.image_url;
       img.alt = entry.caption || "";
       img.addEventListener("click", () => openLightbox(entry.image_url));
@@ -239,7 +296,12 @@ const Viewer = (() => {
     if (tabs.length < 2) return;
     tabs.forEach(tab => {
       const button = el("button", "tab" + (tab.id === activeTab ? " active" : ""), tab.label);
-      button.addEventListener("click", () => { activeTab = tab.id; render(); });
+      button.addEventListener("click", () => {
+        activeTab = tab.id;
+        // Werkstatt, Bibliothek und Verlinkungen brauchen am Handy mehr Platz als die kleine Stellung.
+        if (layoutMode() === "bottom") setExpanded(tab.id !== "main");
+        render();
+      });
       tabsEl.append(button);
     });
   }
@@ -276,6 +338,7 @@ const Viewer = (() => {
     point = nextPoint;
     ctx = nextCtx;
     activeTab = "main";
+    setExpanded(false);
     kicker.innerText = (CATEGORY_LABELS[point.category] || "") + " · Trace-ID " + traceIdOf(point);
     title.innerText = point.title || "";
     render();
@@ -286,7 +349,7 @@ const Viewer = (() => {
     overlay.classList.remove("open");
     point = null;
     // Medien anhalten (Audio/Video laufen sonst hinter dem geschlossenen Fenster weiter).
-    setTimeout(() => { if (!point) body.innerHTML = ""; }, 320);
+    setTimeout(() => { if (!point) { body.innerHTML = ""; setExpanded(false); } }, 320);
   }
 
   document.getElementById("sheetClose").addEventListener("click", () => { if (ctx) ctx.onBack(); });
