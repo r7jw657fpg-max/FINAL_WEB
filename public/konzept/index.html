@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Concept — Cutting from Memory</title>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css" rel="stylesheet">
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+:root {
+  --bg: #fafaf8; --ink: #0a0a0a; --mute: #7d7d7a; --line: rgba(10,10,10,.16); --line2: rgba(10,10,10,.6); --soft: #efefec;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+[data-theme="dark"] { --bg: #0b0b0b; --ink: #f1f1ee; --mute: #8b8b87; --line: rgba(241,241,238,.18); --line2: rgba(241,241,238,.62); --soft: #151515; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-weight: 300; display: grid; grid-template-rows: auto 1fr auto; height: 100dvh; overflow: hidden; -webkit-tap-highlight-color: transparent; transition: background .3s, color .3s; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.mono { font-family: var(--mono); }
+
+/* ---------- Leiste ---------- */
+.bar { display: flex; align-items: center; gap: 14px; padding: max(10px, env(safe-area-inset-top)) 28px 10px; border-bottom: 1px solid var(--line); font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.bar a, .bar button { color: inherit; text-decoration: none; background: none; border: 0; padding: 6px 0; letter-spacing: inherit; text-transform: inherit; font: inherit; }
+.bar .word { font-family: var(--sans); font-size: 12px; letter-spacing: .26em; }
+.crumbs { flex: 1; color: var(--mute); display: flex; gap: 8px; white-space: nowrap; overflow: hidden; }
+.crumbs a:hover, .crumbs button:hover { color: var(--ink); } .crumbs .cur { color: var(--ink); }
+.bar .tid { display: flex; align-items: center; border: 1px solid var(--line2); }
+.bar .tid input { width: 150px; background: none; border: 0; padding: 6px 8px; outline: none; font: inherit; letter-spacing: .06em; }
+.bar .tid button { padding: 6px 9px; border-left: 1px solid var(--line2); }
+.bar .tool { border: 1px solid var(--line2); padding: 6px 10px; }
+.bar .tool:hover, .bar .tid button:hover { background: var(--ink); color: var(--bg); }
+
+#stage { min-height: 0; overflow: hidden; position: relative; }
+.hud { display: flex; justify-content: space-between; gap: 20px; padding: 8px 28px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); min-height: 33px; }
+.hud b { color: var(--ink); font-weight: 400; }
+.view-in { animation: viewIn .5s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Ebene 1: Look ---------- */
+.look { height: 100%; display: flex; flex-direction: column; padding: 0 28px 14px; }
+.lh { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 16px 0 14px; }
+.lh .code { font: 10px var(--mono); letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
+.lh h1 { margin: 4px 0 0; font-weight: 300; font-size: clamp(26px, 3.4vw, 46px); line-height: 1; letter-spacing: .01em; text-transform: uppercase; }
+.lh .meta { font: 10px/1.7 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); text-align: right; }
+.switch { display: flex; gap: 6px; margin-bottom: 6px; justify-content: flex-end; }
+.switch button { font: 10px var(--mono); border: 1px solid var(--line2); background: none; padding: 5px 9px; letter-spacing: .1em; }
+.switch button.on, .switch button:hover { background: var(--ink); color: var(--bg); }
+
+.tree { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); grid-template-rows: minmax(0,1fr); column-gap: clamp(48px, 7vw, 120px); }
+.wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 0; }
+.wires path { fill: none; stroke: var(--line2); stroke-width: 1; transition: opacity .25s, stroke .25s; }
+.wires path.link { stroke-dasharray: 3 4; }
+.wires circle { fill: var(--bg); stroke: var(--ink); stroke-width: 1; }
+.wires .dim { opacity: .2; }
+.hero { position: relative; z-index: 1; margin: 0; height: 100%; aspect-ratio: 3 / 4; background: var(--soft); max-width: 46vw; }
+.hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero i { position: absolute; width: 16px; height: 16px; border: 0 solid var(--ink); }
+.hero i:nth-child(2) { left: -7px; top: -7px; border-width: 1px 0 0 1px; } .hero i:nth-child(3) { right: -7px; top: -7px; border-width: 1px 1px 0 0; }
+.hero i:nth-child(4) { left: -7px; bottom: -7px; border-width: 0 0 1px 1px; } .hero i:nth-child(5) { right: -7px; bottom: -7px; border-width: 0 1px 1px 0; }
+.hero figcaption { position: absolute; left: 10px; bottom: 10px; font: 9px var(--mono); letter-spacing: .12em; color: #fff; mix-blend-mode: difference; text-transform: uppercase; }
+.col { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: space-around; min-height: 0; padding: 4px 0; }
+.node { background: none; border: 0; padding: 6px 0; display: flex; align-items: center; gap: 16px; text-align: left; }
+.col.L .node { flex-direction: row-reverse; text-align: right; }
+.th { flex: none; height: clamp(84px, 15.5vh, 138px); aspect-ratio: 3 / 4; background: var(--soft); border: 1px solid var(--line2); overflow: hidden; display: grid; place-items: center; transition: transform .25s, outline-color .2s; outline: 1px solid transparent; outline-offset: 3px; }
+.th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.th .ph { font: 9px var(--mono); letter-spacing: .12em; color: var(--mute); text-align: center; line-height: 1.8; }
+.th svg { display: block; margin: 0 auto 4px; }
+.node:hover .th, .node.on .th { outline-color: var(--ink); transform: scale(1.03); }
+.nt .ref { font: 10px var(--mono); letter-spacing: .1em; color: var(--mute); }
+.nt .nm { margin: 3px 0 5px; font-size: clamp(13px, 1.25vw, 17px); text-transform: uppercase; letter-spacing: .03em; max-width: 22ch; line-height: 1.2; }
+.col.L .nt .nm { margin-left: auto; }
+.nt .sp { font: 10px/1.65 var(--mono); letter-spacing: .06em; color: var(--mute); text-transform: uppercase; }
+.tag { display: inline-block; border: 1px solid var(--ink); padding: 0 5px; margin-left: 6px; font: 9px var(--mono); letter-spacing: .12em; color: var(--ink); vertical-align: 1px; }
+.lk { display: block; font: 10px var(--mono); letter-spacing: .08em; color: var(--ink); margin-top: 2px; }
+
+/* ---------- Ebene 2: Piece ---------- */
+.piece { height: 100%; display: grid; grid-template-columns: 170px minmax(0,1.3fr) minmax(330px,.9fr); column-gap: 32px; padding: 0 28px; }
+.rail { padding: 18px 0; font: 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; overflow: auto; }
+.rail .rl { display: block; color: var(--mute); margin-bottom: 14px; }
+.rail ul { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 1px solid var(--line2); }
+.rail li { position: relative; padding: 9px 0 9px 14px; }
+.rail li::before { content: ""; position: absolute; left: -15px; top: 50%; width: 14px; border-top: 1px solid var(--line2); }
+.rail li button { background: none; border: 0; padding: 0; color: var(--mute); text-align: left; text-transform: uppercase; letter-spacing: inherit; font: inherit; line-height: 1.5; }
+.rail li.cur button { color: var(--ink); } .rail li.cur::after { content: ""; position: absolute; left: -19px; top: calc(50% - 4px); width: 7px; height: 7px; background: var(--ink); border-radius: 50%; }
+.rail li button:hover { color: var(--ink); }
+.pm { min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 18px 0 14px; }
+.pm .view { position: relative; flex: 1; min-height: 0; background: var(--soft); border: 1px solid var(--line); }
+.pm .view img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+.pm .view model-viewer { position: absolute; inset: 0; width: 100%; height: 100%; --poster-color: transparent; }
+.pm .view .ph { position: absolute; inset: 0; display: grid; place-items: center; font: 10px var(--mono); letter-spacing: .12em; color: var(--mute); }
+.mt { display: flex; gap: 6px; flex-wrap: wrap; }
+.mt button { font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--line2); background: none; padding: 5px 9px; }
+.mt button.on, .mt button:hover { background: var(--ink); color: var(--bg); }
+.pd { overflow: auto; padding: 18px 0 40px; min-width: 0; }
+.pd .ref { font: 10px var(--mono); letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
+.pd h2 { font-weight: 300; font-size: clamp(24px, 2.6vw, 36px); line-height: 1.05; margin: 6px 0 4px; text-transform: uppercase; }
+.sec { display: flex; gap: 10px; margin: 26px 0 9px; font: 10px var(--mono); letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
+.sec b { color: var(--ink); font-weight: 400; }
+.kv { display: grid; grid-template-columns: 128px 1fr; font: 11px/1.4 var(--mono); letter-spacing: .04em; text-transform: uppercase; border-top: 1px solid var(--line); }
+.kv > * { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.kv .k { color: var(--mute); }
+.tbd { display: inline-block; border: 1px dashed var(--mute); color: var(--mute); padding: 0 6px; font-size: 9.5px; letter-spacing: .14em; }
+.story { font-size: 15px; line-height: 1.7; white-space: pre-wrap; margin: 0 0 10px; }
+.story.cm { color: var(--mute); font-size: 14px; }
+.ps { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.ps button { flex: none; width: 78px; background: none; border: 0; padding: 0; text-align: left; }
+.ps img { width: 78px; height: 104px; object-fit: cover; display: block; border: 1px solid var(--line2); }
+.ps span { display: block; margin-top: 4px; font: 9px/1.35 var(--mono); color: var(--mute); text-transform: uppercase; max-width: 78px; overflow: hidden; text-overflow: ellipsis; }
+.pl { font: 10px var(--mono); letter-spacing: .12em; color: var(--mute); text-transform: uppercase; margin: 8px 0; }
+.rel { width: 100%; display: grid; grid-template-columns: 62px 1fr; gap: 14px; background: none; border: 1px solid var(--line); padding: 10px; text-align: left; margin-bottom: 8px; }
+.rel:hover { border-color: var(--ink); }
+.rel .th { height: 82px; }
+.rel .nm { font-size: 14px; text-transform: uppercase; margin: 2px 0 4px; }
+.rel p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--mute); }
+.loc { border: 1px solid var(--line); padding: 10px; }
+.loc svg { display: block; width: 100%; height: 150px; }
+.loc .row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+.loc button { border: 1px solid var(--line2); background: none; padding: 6px 10px; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--ink); }
+.loc button:hover { background: var(--ink); color: var(--bg); }
+.pn { display: none; }
+
+/* ---------- Karte (zweite Instanz) ---------- */
+#map { position: fixed; inset: 0; z-index: 60; display: none; background: var(--bg); }
+#map.on { display: block; }
+#map .mh { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: max(10px, env(safe-area-inset-top)) 28px 10px; font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; background: var(--bg); border-bottom: 1px solid var(--line); }
+#map .mh button { border: 1px solid var(--line2); background: none; padding: 6px 12px; font: inherit; letter-spacing: inherit; text-transform: inherit; }
+#map .mh button:hover { background: var(--ink); color: var(--bg); }
+#mapc { position: absolute; inset: 0; }
+.mk { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--ink); background: var(--bg); color: var(--ink); font: 9px var(--mono); display: grid; place-items: center; }
+.mk.cur { background: var(--ink); color: var(--bg); } .mk.org { box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px var(--ink); }
+
+#lb { position: fixed; inset: 0; z-index: 70; display: none; place-items: center; background: color-mix(in srgb, var(--bg) 94%, transparent); }
+#lb.on { display: grid; } #lb img { max-width: 94vw; max-height: 92dvh; }
+#lb button { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 16px; width: 44px; height: 44px; border: 1px solid var(--line2); background: var(--bg); font-size: 22px; }
+.note { position: fixed; left: 28px; bottom: 46px; z-index: 5; font: 9px var(--mono); letter-spacing: .12em; color: var(--mute); text-transform: uppercase; pointer-events: none; }
+
+/* ---------- Handy: Stamm statt Ring ---------- */
+@media (max-width: 860px) {
+  body { overflow: auto; height: auto; min-height: 100dvh; display: block; }
+  .bar { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: max(10px, env(safe-area-inset-top)) 16px 10px; gap: 10px; flex-wrap: wrap; }
+  .bar .word { flex: 1; font-size: 11px; letter-spacing: .16em; white-space: nowrap; }
+  .crumbs { order: 3; flex: 1 1 0; min-width: 0; }
+  .bar .tid { order: 4; } .bar .tool { order: 2; }
+  .bar .tid input { width: 104px; font-size: 16px; }
+  .hud, .note { display: none; }
+  #stage { overflow: visible; }
+  .look { height: auto; padding: 0 16px 90px; }
+  .lh { flex-direction: column; align-items: flex-start; }
+  .lh .meta { text-align: left; } .switch { justify-content: flex-start; }
+  .tree { display: block; }
+  .hero { height: auto; width: 100%; max-width: none; max-height: 66dvh; }
+  .hero img { max-height: 66dvh; }
+  .wires { display: none; }
+  .branch { position: relative; margin: 26px 0 0 10px; padding-left: 24px; border-left: 1px solid var(--line2); }
+  .branch .node { position: relative; width: 100%; padding: 14px 0; }
+  .branch .node::before { content: ""; position: absolute; left: -24px; top: 50%; width: 20px; border-top: 1px solid var(--line2); }
+  .branch .node::after { content: ""; position: absolute; left: -28px; top: calc(50% - 3px); width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
+  .th { height: 96px; }
+  .nt .nm { font-size: 15px; }
+  .piece { display: block; height: auto; padding: 0 16px 96px; }
+  .rail { display: none; }
+  .pm { padding-top: 14px; } .pm .view { aspect-ratio: 4 / 5; flex: none; }
+  .pd { overflow: visible; }
+  .kv { grid-template-columns: 112px 1fr; }
+  .pn { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; border-top: 1px solid var(--line2); background: var(--bg); padding-bottom: env(safe-area-inset-bottom); }
+  .pn button { flex: 1; min-height: 52px; background: none; border: 0; font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+  .pn button + button { border-left: 1px solid var(--line); }
+  .pn button:disabled { opacity: .25; }
+  #map .mh { padding-left: 16px; padding-right: 16px; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="word" href="#/look/1">CUTTING FROM MEMORY</a>
+  <nav class="crumbs" id="crumbs"></nav>
+  <form class="tid" id="tid" autocomplete="off"><input id="tidIn" placeholder="TRACE-ID" inputmode="decimal" aria-label="Trace-ID"><button type="submit">→</button></form>
+  <button class="tool" id="mapBtn">Map</button>
+  <button class="tool" id="themeBtn" aria-label="Theme">◐</button>
+</header>
+<main id="stage"></main>
+<footer class="hud"><span id="hudL">Concept mockup — live data from the site</span><span id="hudR">← → looks &nbsp;·&nbsp; esc up</span></footer>
+<div id="map"><div class="mh"><span id="mapT">Map</span><button id="mapX">Close ✕</button></div><div id="mapc"></div></div>
+<div id="lb"><button aria-label="Close">×</button><img alt=""></div>
+
+<script>
+const MAPBOX_TOKEN = "pk.eyJ1IjoibGVvbnJvY2EiLCJhIjoiY21wYmY1Yjl6MDNxczJxc2U0MzByNHA3OCJ9.-BaGJWtZCr3lKDKP1o9THQ";
+const MAP_STYLE = "mapbox://styles/leonroca/cmu5b7jcz003g01sagg39fgfx";
+const S = { looks: [] };
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const isMobile = () => matchMedia("(max-width: 860px)").matches;
+const TYPE = { commission: "Origin", lost_and_found: "Found", scan: "Scan" };
+const CUBE = '<svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1"><path d="M13 3l9 5v10l-9 5-9-5V8z"/><path d="M4 8l9 5 9-5M13 13v10"/></svg>';
+
+function hav(a, b) {
+  const R = 6371, r = d => d * Math.PI / 180, dl = r(b.lat - a.lat), dg = r(b.lng - a.lng);
+  const x = Math.sin(dl / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dg / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+const coord = p => Math.abs(p.lat).toFixed(5) + "° " + (p.lat >= 0 ? "N" : "S") + "  " + Math.abs(p.lng).toFixed(5) + "° " + (p.lng >= 0 ? "E" : "W");
+const shortName = p => (p.title || TYPE[p.category]).replace(/^COMM?ISSION PIECE\s*-\s*/i, "").replace(/\s+/g, " ").trim();
+const get = u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); });
+
+async function load() {
+  const list = await get("/api/traces");
+  const details = await Promise.all(list.map(t => get("/api/traces/" + t.id)));
+  S.looks = details.map((d, i) => {
+    const m = d.title.replace(/\s+/g, " ").trim().match(/^(TRCE-\d+)[-\s]+(.+)$/i);
+    const look = { n: i + 1, id: d.id, code: m ? m[1].toUpperCase() : "LOOK", name: m ? m[2].replace(/-/g, " ") : d.title, img: d.look_image_url };
+    const origin = d.points.find(p => p.category === "commission");
+    look.points = d.points.map((p, j) => {
+      const imgs = p.media.filter(x => x.kind === "image"), models = p.media.filter(x => x.kind === "model");
+      return { ...p, look, idx: j, ref: "L" + pad(i + 1) + ".P" + pad(j + 1), name: shortName(p), km: origin && p !== origin ? hav(origin, p) : null, img: imgs[0] && imgs[0].url, nImg: imgs.length, nModel: models.length, nAudio: p.media.filter(x => x.kind === "audio").length };
+    });
+    look.origin = look.points.find(p => p.category === "commission");
+    return look;
+  });
+  await Promise.all(S.looks.flatMap(l => l.points.map(async p => {
+    try { const ws = await get("/api/points/" + p.id + "/workshop?trace_id=" + l.id); p.raw = ws.filter(e => e.kind === "raw"); p.chg = ws.filter(e => e.kind === "change"); }
+    catch (e) { p.raw = []; p.chg = []; }
+  })));
+}
+
+/* ---------- Routing ---------- */
+function parse() { const m = location.hash.match(/^#\/look\/(\d+)(?:\/(\d+))?/); return m ? { l: +m[1], p: m[2] ? +m[2] : null } : { l: 1, p: null }; }
+const go = h => { location.hash = h; };
+function route() {
+  const { l, p } = parse(); const look = S.looks[l - 1] || S.looks[0];
+  if (!look) return;
+  closeMap();
+  const stage = $("#stage"); stage.innerHTML = ""; stage.scrollTop = 0; window.scrollTo(0, 0);
+  const view = (p && look.points[p - 1]) ? pieceView(look, look.points[p - 1]) : lookView(look);
+  view.classList.add("view-in"); stage.append(view);
+  crumbs(look, p && look.points[p - 1]);
+  if (!p) requestAnimationFrame(() => requestAnimationFrame(wire));
+}
+function crumbs(look, piece) {
+  const c = $("#crumbs"); c.innerHTML = "";
+  const a = el("a", piece ? "" : "cur", "Looks / " + pad(look.n)); a.href = "#/look/" + look.n; c.append(a);
+  if (piece) { c.append(el("span", "", "/")); c.append(el("span", "cur", piece.ref)); }
+}
+const hud = (l, r) => { $("#hudL").innerHTML = l; if (r !== undefined) $("#hudR").innerHTML = r; };
+
+/* ---------- Ebene 1: Look ---------- */
+function nodeEl(p, side) {
+  const b = el("button", "node"); b.dataset.i = p.idx;
+  const th = el("div", "th");
+  if (p.img) { const i = el("img"); i.loading = "lazy"; i.decoding = "async"; i.src = p.img; i.alt = ""; th.append(i); }
+  else th.innerHTML = '<div class="ph">' + CUBE + (p.nModel ? "3D SCAN" : "NO IMAGE") + "</div>";
+  const nt = el("div", "nt");
+  const sp = [TYPE[p.category]];
+  if (p.nModel) sp.push("3D"); if (p.nImg) sp.push("IMG " + p.nImg);
+  const proc = (p.raw || []).length + (p.chg || []).length; if (proc) sp.push("PROC " + proc);
+  const rel = p.links.map(l => { const o = p.look.points.find(x => x.id === l.point_id); return o ? '<span class="lk">⇄ ' + o.ref + "</span>" : ""; }).join("");
+  nt.innerHTML = '<div class="ref">' + p.ref + (p.category === "commission" ? '<span class="tag">Origin</span>' : "") + '</div><div class="nm">' + esc(p.name) + '</div><div class="sp">' + sp.join(" · ") + (p.km != null ? "<br>" + p.km.toFixed(1) + " KM FROM ORIGIN" : "") + "</div>" + rel;
+  b.append(th, nt);
+  b.addEventListener("click", () => go("#/look/" + p.look.n + "/" + (p.idx + 1)));
+  const on = () => { b.classList.add("on"); hud("<b>" + p.ref + "</b> &nbsp; " + coord(p) + (p.km != null ? " &nbsp; " + p.km.toFixed(1) + " km from origin" : " &nbsp; origin")); dimWires(p.idx); };
+  const off = () => { b.classList.remove("on"); hud("Concept mockup — live data from the site"); dimWires(null); };
+  b.addEventListener("mouseenter", on); b.addEventListener("mouseleave", off); b.addEventListener("focus", on); b.addEventListener("blur", off);
+  return b;
+}
+let WIRE = null;
+function lookView(look) {
+  const root = el("section", "look");
+  const scans = look.points.reduce((a, p) => a + p.nModel, 0);
+  const radius = Math.max(0, ...look.points.map(p => p.km || 0));
+  const head = el("div", "lh");
+  const left = el("div"); left.innerHTML = '<div class="code">' + esc(look.code) + " / " + pad(look.n) + "</div><h1>" + esc(look.name) + "</h1>";
+  const right = el("div"); const sw = el("div", "switch");
+  S.looks.forEach(l => { const b = el("button", l.n === look.n ? "on" : "", pad(l.n)); b.title = l.name; b.onclick = () => go("#/look/" + l.n); sw.append(b); });
+  right.append(sw, el("div", "meta", look.points.length + " PIECES · " + scans + " 3D SCANS · RADIUS " + radius.toFixed(1) + " KM"));
+  head.append(left, right);
+  const tree = el("div", "tree");
+  const hero = el("figure", "hero"); hero.innerHTML = '<i></i><i></i><i></i><i></i><i></i><img alt="' + esc(look.name) + '"><figcaption>LOOK ' + pad(look.n) + " — FULL LOOK</figcaption>";
+  hero.querySelector("img").src = look.img;
+  if (isMobile()) {
+    tree.append(hero);
+    const br = el("div", "branch"); look.points.forEach(p => br.append(nodeEl(p))); tree.append(br);
+    root.append(head, tree); return root;
+  }
+  // Seiten verteilen: verlinkte Pieces landen auf derselben Seite (Klammer im Zwischenraum), sonst ausgewogen.
+  const side = {}; let nl = 0, nr = 0;
+  look.points.forEach(p => {
+    const rel = p.links.map(l => look.points.find(x => x.id === l.point_id)).find(o => o && side[o.id]);
+    side[p.id] = rel ? side[rel.id] : (nl <= nr ? "L" : "R");
+    side[p.id] === "L" ? nl++ : nr++;
+  });
+  const L = el("div", "col L"), R = el("div", "col R"); const nodes = [];
+  look.points.forEach(p => { const n = nodeEl(p); (side[p.id] === "L" ? L : R).append(n); nodes.push({ p, n, side: side[p.id] }); });
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "wires");
+  tree.append(svg, L, hero, R);
+  root.append(head, tree);
+  WIRE = { tree, hero, svg, nodes, look };
+  new ResizeObserver(() => wire(true)).observe(tree);
+  return root;
+}
+function wire(quiet) {
+  if (!WIRE || !WIRE.tree.isConnected) return;
+  const { tree, hero, svg, nodes } = WIRE; const T = tree.getBoundingClientRect(), H = hero.getBoundingClientRect();
+  svg.setAttribute("viewBox", "0 0 " + T.width + " " + T.height); svg.innerHTML = "";
+  const NS = "http://www.w3.org/2000/svg"; const mk = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); svg.append(e); return e; };
+  const anch = {};
+  ["L", "R"].forEach(sd => {
+    const list = nodes.filter(n => n.side === sd).sort((a, b) => a.n.getBoundingClientRect().top - b.n.getBoundingClientRect().top);
+    list.forEach((n, k) => {
+      const th = $(".th", n.n).getBoundingClientRect();
+      const nx = (sd === "L" ? th.right : th.left) - T.left, ny = th.top + th.height / 2 - T.top;
+      const hx = (sd === "L" ? H.left : H.right) - T.left, hy = H.top - T.top + H.height * (0.5 + (k - (list.length - 1) / 2) * 0.085);
+      const dx = nx - hx;
+      const path = mk("path", { d: "M" + hx + "," + hy + " C" + (hx + dx * .62) + "," + hy + " " + (nx - dx * .38) + "," + ny + " " + nx + "," + ny, "data-i": n.p.idx, class: n.p.category === "commission" ? "org" : "" });
+      if (n.p.category === "commission") path.style.strokeWidth = "1.6";
+      mk("circle", { cx: hx, cy: hy, r: 2.6 }); mk("circle", { cx: nx, cy: ny, r: 3.2 });
+      anch[n.p.id] = { nx, ny, sd };
+      if (!quiet) { const len = path.getTotalLength(); path.style.strokeDasharray = len; path.style.strokeDashoffset = len; path.getBoundingClientRect(); path.style.transition = "stroke-dashoffset 1s cubic-bezier(.2,.7,.2,1) " + (k * .12) + "s, opacity .25s"; requestAnimationFrame(() => path.style.strokeDashoffset = 0); }
+    });
+  });
+  // Verlinkungen: gestrichelte Klammer im Zwischenraum (technische Zeichnung)
+  const seen = new Set();
+  nodes.forEach(n => n.p.links.forEach(l => {
+    const o = nodes.find(x => x.p.id === l.point_id); if (!o || seen.has(l.id) || o.side !== n.side) return; seen.add(l.id);
+    const a = anch[n.p.id], b = anch[o.p.id], gx = a.nx + (a.sd === "L" ? 26 : -26);
+    mk("path", { class: "link", d: "M" + a.nx + "," + a.ny + " L" + gx + "," + a.ny + " L" + gx + "," + b.ny + " L" + b.nx + "," + b.ny, "data-i": n.p.idx + "," + o.p.idx });
+  }));
+}
+function dimWires(i) {
+  document.querySelectorAll(".wires path").forEach(p => {
+    const ids = String(p.dataset.i).split(","); p.classList.toggle("dim", i !== null && !ids.includes(String(i)));
+  });
+}
+
+/* ---------- Ebene 2: Piece ---------- */
+function pieceView(look, p) {
+  const root = el("section", "piece");
+  // Stammbaum als Navigation (Rail)
+  const rail = el("aside", "rail"); rail.innerHTML = '<a class="rl" href="#/look/' + look.n + '" style="color:inherit;text-decoration:none">↑ L' + pad(look.n) + " " + esc(look.code) + "</a>";
+  const ul = el("ul"); look.points.forEach(q => { const li = el("li", q.id === p.id ? "cur" : ""); const b = el("button", "", q.ref.split(".")[1] + " " + esc(q.name.length > 18 ? q.name.slice(0, 17) + "…" : q.name)); b.onclick = () => go("#/look/" + look.n + "/" + (q.idx + 1)); li.append(b); ul.append(li); });
+  rail.append(ul);
+
+  // Medien
+  const pm = el("div", "pm"); const view = el("div", "view"); const mt = el("div", "mt");
+  const media = p.media.filter(m => m.kind !== "audio");
+  const show = i => {
+    view.innerHTML = ""; const m = media[i];
+    [...mt.children].forEach((b, k) => b.classList.toggle("on", k === i));
+    if (!m) { view.innerHTML = '<div class="ph">NO MEDIA YET — TBD</div>'; return; }
+    if (m.kind === "image") { const im = el("img"); im.src = m.url; im.alt = ""; im.onclick = () => lightbox(m.url); view.append(im); }
+    else if (m.kind === "video") { const v = el("video"); v.src = m.url; v.controls = true; v.playsInline = true; Object.assign(v.style, { position: "absolute", inset: 0, width: "100%", height: "100%" }); view.append(v); }
+    else { const mv = document.createElement("model-viewer"); mv.setAttribute("src", m.url); mv.setAttribute("camera-controls", ""); mv.setAttribute("auto-rotate", ""); mv.setAttribute("touch-action", "pan-y"); view.append(mv); }
+  };
+  const lab = { image: "IMG", video: "VID", model: "3D SCAN" }; let ic = 0, ivd = 0;
+  media.forEach((m, i) => { const t = m.kind === "image" ? lab.image + " " + (++ic) : m.kind === "video" ? lab.video + " " + (++ivd) : lab.model; const b = el("button", "", t); b.onclick = () => show(i); mt.append(b); });
+  pm.append(view); if (media.length > 1) pm.append(mt); show(0);
+
+  // Daten
+  const pd = el("div", "pd");
+  pd.innerHTML = '<div class="ref">' + p.ref + " · " + TYPE[p.category] + '</div><h2>' + esc(p.name) + "</h2>";
+  const tbd = '<span class="tbd">TBD</span>';
+  const kv = [
+    ["Ref", p.ref], ["Type", TYPE[p.category] + (p.category === "commission" ? " (start of trace)" : "")],
+    ["Trace-ID", coord(p)], ["From origin", p.km != null ? p.km.toFixed(2) + " km" : "—"],
+    ["Media", [p.nImg && "IMG " + p.nImg, p.nModel && "3D " + p.nModel, p.nAudio && "AUDIO " + p.nAudio].filter(Boolean).join(" · ") || tbd],
+    ["Process", ((p.raw || []).length || (p.chg || []).length) ? "RAW " + (p.raw || []).length + " → CHANGE " + (p.chg || []).length : tbd],
+    ["Material", tbd], ["Composition", tbd], ["Condition", tbd], ["Found on", tbd], ["Status", tbd],
+  ];
+  pd.insertAdjacentHTML("beforeend", '<div class="sec"><b>01</b> Specification</div><div class="kv">' + kv.map(r => '<div class="k">' + r[0] + "</div><div>" + r[1] + "</div>").join("") + "</div>");
+  const story = (p.text || "").trim(), cm = (p.item_comment || "").trim();
+  if (story || cm) pd.insertAdjacentHTML("beforeend", '<div class="sec"><b>02</b> Story</div>' + (story ? '<p class="story">' + esc(story) + "</p>" : "") + (cm ? '<p class="story cm">' + esc(cm) + "</p>" : ""));
+  p.media.filter(m => m.kind === "audio").forEach(m => pd.insertAdjacentHTML("beforeend", '<audio controls preload="none" src="' + esc(m.url) + '" style="width:100%;margin-top:6px"></audio>'));
+  if ((p.raw || []).length || (p.chg || []).length) {
+    const strip = (title, arr) => { if (!arr.length) return ""; return '<div class="pl">' + title + '</div><div class="ps">' + arr.map(e => '<button data-u="' + esc(e.image_url) + '"><img loading="lazy" src="' + esc(e.image_url) + '" alt=""><span>' + esc(e.caption || "—") + "</span></button>").join("") + "</div>"; };
+    const box = el("div"); box.innerHTML = '<div class="sec"><b>03</b> Process</div>' + strip("Unprocessed ↓", p.raw || []) + strip("Changes ↓", p.chg || []);
+    box.querySelectorAll("button[data-u]").forEach(b => b.onclick = () => lightbox(b.dataset.u)); pd.append(box);
+  }
+  if (p.links.length) {
+    const box = el("div"); box.innerHTML = '<div class="sec"><b>04</b> Related</div>';
+    p.links.forEach(l => { const o = look.points.find(x => x.id === l.point_id); if (!o) return;
+      const b = el("button", "rel"); const th = el("div", "th"); th.innerHTML = o.img ? '<img loading="lazy" src="' + esc(o.img) + '" alt="">' : '<div class="ph">' + CUBE + "</div>";
+      const t = el("div"); t.innerHTML = '<div class="pl" style="margin:0">⇄ ' + o.ref + " · " + TYPE[o.category] + '</div><div class="nm">' + esc(o.name) + "</div><p>" + esc(l.note || "") + "</p>";
+      b.append(th, t); b.onclick = () => go("#/look/" + look.n + "/" + (o.idx + 1)); box.append(b); });
+    pd.append(box);
+  }
+  pd.append(locator(look, p));
+  const pn = el("nav", "pn"); const prev = look.points[p.idx - 1], next = look.points[p.idx + 1];
+  const mkb = (t, q, up) => { const b = el("button", "", t); if (!q && !up) b.disabled = true; b.onclick = () => go(up ? "#/look/" + look.n : "#/look/" + look.n + "/" + (q.idx + 1)); return b; };
+  pn.append(mkb("‹ " + (prev ? prev.ref : ""), prev), mkb("↑ Look", null, true), mkb((next ? next.ref : "") + " ›", next));
+  root.append(rail, pm, pd, pn);
+  hud("<b>" + p.ref + "</b> &nbsp; " + coord(p), "← → pieces &nbsp;·&nbsp; esc up");
+  return root;
+}
+function locator(look, p) {
+  const pts = look.points, la = pts.map(q => q.lat), ln = pts.map(q => q.lng);
+  const mnLa = Math.min(...la), mxLa = Math.max(...la), mnLn = Math.min(...ln), mxLn = Math.max(...ln);
+  const W = 400, Hh = 150, pad_ = 20; const sx = q => pad_ + (q.lng - mnLn) / ((mxLn - mnLn) || 1) * (W - 2 * pad_), sy = q => Hh - pad_ - (q.lat - mnLa) / ((mxLa - mnLa) || 1) * (Hh - 2 * pad_);
+  let s = '<svg viewBox="0 0 ' + W + " " + Hh + '" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="1" width="' + (W - 2) + '" height="' + (Hh - 2) + '" opacity=".25"/>';
+  if (look.origin) pts.forEach(q => { if (q !== look.origin) s += '<line x1="' + sx(look.origin) + '" y1="' + sy(look.origin) + '" x2="' + sx(q) + '" y2="' + sy(q) + '" opacity=".25" stroke-dasharray="3 4"/>'; });
+  pts.forEach(q => { const x = sx(q), y = sy(q), cur = q === p;
+    s += q.category === "commission" ? '<rect x="' + (x - 4) + '" y="' + (y - 4) + '" width="8" height="8" fill="' + (cur ? "currentColor" : "none") + '"/>' : '<circle cx="' + x + '" cy="' + y + '" r="3.2" fill="' + (cur ? "currentColor" : "none") + '"/>';
+    if (cur) s += '<circle cx="' + x + '" cy="' + y + '" r="11"/><path d="M' + (x - 18) + " " + y + "H" + (x - 13) + "M" + (x + 13) + " " + y + "H" + (x + 18) + "M" + x + " " + (y - 18) + "V" + (y - 13) + "M" + x + " " + (y + 13) + "V" + (y + 18) + '"/>'; });
+  s += "</svg>";
+  const box = el("div"); box.innerHTML = '<div class="sec"><b>05</b> Location</div><div class="loc">' + s + '<div class="row"><span>□ origin · ○ piece</span><button>Open map →</button></div></div>';
+  $("button", box).onclick = () => openMap(look, p); return box;
+}
+
+/* ---------- Karte: zweite Instanz ---------- */
+let MAP = null, MARKERS = [];
+function loadMapbox() { return window.mapboxgl ? Promise.resolve() : new Promise((ok, no) => { const s = el("script"); s.src = "https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"; s.onload = ok; s.onerror = no; document.head.append(s); }); }
+async function openMap(look, cur) {
+  look = look || S.looks[parse().l - 1] || S.looks[0];
+  $("#map").classList.add("on"); $("#mapT").textContent = "Map — " + look.code + " / " + pad(look.n);
+  await loadMapbox(); mapboxgl.accessToken = MAPBOX_TOKEN;
+  if (!MAP) MAP = new mapboxgl.Map({ container: "mapc", style: MAP_STYLE, center: [8.54, 47.377], zoom: 12 });
+  MARKERS.forEach(m => m.remove()); MARKERS = [];
+  const b = new mapboxgl.LngLatBounds();
+  look.points.forEach(p => { const d = el("button", "mk" + (p === cur ? " cur" : "") + (p.category === "commission" ? " org" : ""), p.ref.split(".")[1]); d.onclick = () => go("#/look/" + look.n + "/" + (p.idx + 1));
+    MARKERS.push(new mapboxgl.Marker({ element: d }).setLngLat([p.lng, p.lat]).addTo(MAP)); b.extend([p.lng, p.lat]); });
+  MAP.resize(); MAP.fitBounds(b, { padding: { top: 110, bottom: 70, left: 60, right: 60 }, maxZoom: 16, duration: 0 });
+}
+function closeMap() { $("#map").classList.remove("on"); }
+function lightbox(u) { $("#lb img").src = u; $("#lb").classList.add("on"); }
+
+/* ---------- Bedienung ---------- */
+$("#mapBtn").onclick = () => openMap(); $("#mapX").onclick = closeMap;
+$("#lb").onclick = () => $("#lb").classList.remove("on");
+$("#themeBtn").onclick = () => { const d = document.documentElement; d.dataset.theme = d.dataset.theme === "dark" ? "light" : "dark"; };
+$("#tid").onsubmit = e => {
+  e.preventDefault(); const n = ($("#tidIn").value.match(/-?\d{1,3}(?:[.,]\d+)?/g) || []).map(x => +x.replace(",", "."));
+  if (n.length < 2) return; let hit = null;
+  S.looks.forEach(l => l.points.forEach(p => { if (!hit && ((Math.abs(p.lat - n[0]) < .0003 && Math.abs(p.lng - n[1]) < .0003) || (Math.abs(p.lat - n[1]) < .0003 && Math.abs(p.lng - n[0]) < .0003))) hit = p; }));
+  if (hit) go("#/look/" + hit.look.n + "/" + (hit.idx + 1)); else { $("#tidIn").value = ""; $("#tidIn").placeholder = "NOT FOUND"; }
+};
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const { l, p } = parse(); const look = S.looks[l - 1]; if (!look) return;
+  if (e.key === "Escape") { if ($("#lb").classList.contains("on")) $("#lb").classList.remove("on"); else if ($("#map").classList.contains("on")) closeMap(); else if (p) go("#/look/" + l); }
+  if (e.key === "ArrowRight") p ? (look.points[p] && go("#/look/" + l + "/" + (p + 1))) : (S.looks[l] && go("#/look/" + (l + 1)));
+  if (e.key === "ArrowLeft") p ? (p > 1 && go("#/look/" + l + "/" + (p - 1))) : (l > 1 && go("#/look/" + (l - 1)));
+});
+addEventListener("hashchange", route);
+let wasMobile = isMobile(); addEventListener("resize", () => { if (wasMobile !== isMobile()) { wasMobile = isMobile(); route(); } });
+load().then(() => { route(); $("#hudL").textContent = "Concept mockup — live data from the site"; })
+  .catch(e => { console.error(e); $("#stage").innerHTML = '<p style="padding:40px;font:11px var(--mono)">COULD NOT LOAD DATA</p>'; });
+</script>
+</body>
+</html>
