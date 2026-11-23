@@ -3,6 +3,7 @@ import { add, json, newId, num, str } from "../lib.js";
 
 const POINT_CATEGORIES = ["commission", "lost_and_found", "scan"];
 const COMMISSION_TAKEN = { error: "Dieser Trace hat schon einen Commission-Startpunkt." };
+const SPEC_FIELDS = ["material", "composition", "condition", "found_on", "status"];
 
 // Nächste Reihenfolge-Nummer in einem Look; zählt eigene und eingebundene Punkte.
 export async function nextPointOrder(env, traceId) {
@@ -31,8 +32,10 @@ add("POST", "/api/traces/:id/points", async ({ env, params, body }) => {
   const id = newId("point");
   const sortOrder = await nextPointOrder(env, params.id);
   await env.DB.prepare(
-    "INSERT INTO points (id, trace_id, category, title, text, item_comment, lng, lat, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).bind(id, params.id, category, str(data.title), str(data.text), str(data.item_comment), lng, lat, sortOrder, new Date().toISOString()).run();
+    "INSERT INTO points (id, trace_id, category, title, text, item_comment, lng, lat, sort_order, created_at, material, composition, condition, found_on, status) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(id, params.id, category, str(data.title), str(data.text), str(data.item_comment), lng, lat, sortOrder, new Date().toISOString(),
+    ...SPEC_FIELDS.map(field => str(data[field]))).run();
   return json({ id, sort_order: sortOrder }, 201);
 }, { admin: true });
 
@@ -59,10 +62,12 @@ add("PUT", "/api/points/:id", async ({ env, params, body }) => {
   }
 
   await env.DB.prepare(
-    "UPDATE points SET category = ?, title = ?, text = ?, item_comment = ?, lng = ?, lat = ? WHERE id = ?"
+    "UPDATE points SET category = ?, title = ?, text = ?, item_comment = ?, lng = ?, lat = ?, " +
+    "material = ?, composition = ?, condition = ?, found_on = ?, status = ? WHERE id = ?"
   ).bind(
     category, str(data.title, existing.title), str(data.text, existing.text), str(data.item_comment, existing.item_comment),
-    num(data.lng, existing.lng), num(data.lat, existing.lat), params.id
+    num(data.lng, existing.lng), num(data.lat, existing.lat),
+    ...SPEC_FIELDS.map(field => str(data[field], existing[field])), params.id
   ).run();
   return json({ ok: true });
 }, { admin: true });

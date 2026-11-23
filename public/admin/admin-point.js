@@ -4,6 +4,8 @@ function pointPayload(point) {
   return {
     category: point.category, title: point.title, text: point.text, item_comment: point.item_comment,
     lng: point.lng, lat: point.lat,
+    material: point.material || "", composition: point.composition || "", condition: point.condition || "",
+    found_on: point.found_on || "", status: point.status || "",
   };
 }
 
@@ -165,6 +167,21 @@ function showPoint(pointId) {
   const comment = h("textarea", { value: point.item_comment });
   comment.addEventListener("change", () => savePoint(point, { item_comment: comment.value }));
 
+  // Datenblatt: erscheint auf der Website als Specification des Pieces (leer = "TBD").
+  const specInput = (key, label, props = {}) => {
+    const input = h("input", { type: "text", value: point[key] || "", ...props });
+    input.addEventListener("change", () => savePoint(point, { [key]: input.value }));
+    return field(label, input);
+  };
+  const specs = h("section", { class: "section" },
+    h("div", { class: "section-title" }, h("span", { class: "label" }, "Specification (data sheet)")),
+    specInput("material", "Material", { placeholder: "e.g. Wool, felted" }),
+    specInput("composition", "Composition", { placeholder: "e.g. 100% wool" }),
+    specInput("condition", "Condition", { placeholder: "e.g. Good, minor wear" }),
+    specInput("found_on", "Found on", { type: "date" }),
+    specInput("status", "Status", { placeholder: "Found / In progress / Finished", list: "statusList" }),
+    h("datalist", { id: "statusList" }, ["Found", "In progress", "Finished"].map(v => h("option", { value: v }))));
+
   const hasWorkshop = point.category === "lost_and_found" || point.category === "commission";
   return h("div", {},
     h("button", { class: "link-back", onclick: () => go(showTrace, app.trace.id) }, "← " + app.trace.title),
@@ -178,6 +195,7 @@ function showPoint(pointId) {
       field("Title", title),
       field("Text", text),
       h("div", { class: "coords" }, "Trace-ID (GPS number of the find location): " + traceIdOf(point) + " — drag the marker on the map to move it; the ID changes with it.")),
+    specs,
     h("section", { class: "section" },
       h("div", { class: "section-title" }, h("span", { class: "label" }, "Media (images, video, 3D .glb, audio)")),
       buildMediaList(point)),

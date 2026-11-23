@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS points (
   title TEXT NOT NULL DEFAULT '',
   text TEXT NOT NULL DEFAULT '',
   item_comment TEXT NOT NULL DEFAULT '',     -- Kommentar für die Werkstatt-Ansicht
+  material TEXT NOT NULL DEFAULT '',         -- Datenblatt: Material
+  composition TEXT NOT NULL DEFAULT '',      -- Datenblatt: Zusammensetzung (z.B. 100% Wolle)
+  condition TEXT NOT NULL DEFAULT '',        -- Datenblatt: Zustand beim Fund
+  found_on TEXT NOT NULL DEFAULT '',         -- Datenblatt: Fundtag (JJJJ-MM-TT)
+  status TEXT NOT NULL DEFAULT '',           -- Datenblatt: Status (z.B. Found / In progress / Finished)
   lng REAL NOT NULL,
   lat REAL NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,     -- Reihenfolge für den "Weiter"-Button
