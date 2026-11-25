@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS points (
   condition TEXT NOT NULL DEFAULT '',        -- Datenblatt: Zustand beim Fund
   found_on TEXT NOT NULL DEFAULT '',         -- Datenblatt: Fundtag (JJJJ-MM-TT)
   status TEXT NOT NULL DEFAULT '',           -- Datenblatt: Status (z.B. Found / In progress / Finished)
+  zone TEXT NOT NULL DEFAULT '',             -- Körperzone fürs Hotspot-Platzieren: head | torso | legs | feet | accessory | '' (automatisch)
   lng REAL NOT NULL,
   lat REAL NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,     -- Reihenfolge für den "Weiter"-Button
@@ -42,6 +43,15 @@ CREATE TABLE IF NOT EXISTS trace_point_refs (
   PRIMARY KEY (trace_id, point_id)
 );
 CREATE INDEX IF NOT EXISTS trace_point_refs_point ON trace_point_refs (point_id);
+
+-- Hotspot eines Pieces auf dem Look-Foto, je Look (ein eingebundener Fundort hat in jedem Look seinen eigenen Punkt).
+CREATE TABLE IF NOT EXISTS look_hotspots (
+  trace_id TEXT NOT NULL,
+  point_id TEXT NOT NULL,
+  x REAL NOT NULL,                           -- 0..100, Anteil der Foto-Breite
+  y REAL NOT NULL,                           -- 0..100, Anteil der Foto-Höhe
+  PRIMARY KEY (trace_id, point_id)
+);
 
 -- Medien eines Punkts (beliebig viele).
 CREATE TABLE IF NOT EXISTS point_media (

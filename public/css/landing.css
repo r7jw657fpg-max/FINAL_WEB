@@ -3,12 +3,11 @@
   position: fixed; inset: 0; z-index: -1; background: var(--soft) center / cover no-repeat;
 }
 #bg.has-image::after {
-  content: ""; position: absolute; inset: 0; background: rgba(255, 255, 255, .78);
+  content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 80%, transparent);
 }
 body { background: var(--soft); }
 
-/* Logo: weißer Logo-Hintergrund verschwindet per Multiply in der Seitenfarbe. */
-.logo-img { mix-blend-mode: multiply; }
+/* Logo-Blending (hell: Multiply, dunkel: invertiert + Screen) steht in base.css. */
 
 /* ===== Start-Logo: bildschirmfüllend, unsichtbare Lupe, Klick blendet aus ===== */
 html.splash-open, html.splash-open body { overflow: hidden; }
@@ -24,7 +23,7 @@ html.no-splash #splash { display: none; }
   position: absolute; inset: 0; padding: 26vh 28vw;
   display: flex; align-items: center; justify-content: center;
 }
-.splash-layer img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; pointer-events: none; }
+.splash-layer img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .splash-layer .logo-placeholder-big { border: 0; padding: 0; text-align: center; }
 
 /* Die Lupe hat keinen Rahmen und keinen Verlauf: ein scharf geschnittener Kreis, in dem das Logo 2,5× vergrößert erscheint. */
@@ -61,10 +60,10 @@ html.no-splash #splash { display: none; }
 .id-form { display: flex; width: min(100%, 520px); }
 .id-form input {
   flex: 1; min-width: 0; padding: 11px 14px; border: 1px solid var(--line-strong); border-right: 0;
-  border-radius: 0; background: rgba(255, 255, 255, .7); outline: none; font-size: 13px;
+  border-radius: 0; background: color-mix(in srgb, var(--bg) 70%, transparent); outline: none; font-size: 13px;
 }
-.id-form input:focus { background: #fff; }
-.id-error { margin: -12px 0 0; font-size: 12px; color: #b3261e; }
+.id-form input:focus { background: var(--bg); }
+.id-error { margin: -12px 0 0; font-size: 12px; color: #e0554c; }
 
 .looks {
   margin: 0; padding: 0 40px 90px;
@@ -82,7 +81,7 @@ html.no-splash #splash { display: none; }
 
 .lens {
   position: absolute; width: 150px; height: 150px; border-radius: 50%; pointer-events: none;
-  border: 1px solid var(--line-strong); background-repeat: no-repeat; background-color: #fff;
+  border: 1px solid var(--line-strong); background-repeat: no-repeat; background-color: var(--bg);
   opacity: 0; transition: opacity .12s ease;
 }
 .lens.on { opacity: 1; }
@@ -119,3 +118,10 @@ html.no-splash #splash { display: none; }
   .splash-layer { padding: 30vh 14vw; }
   .splash-lens { -webkit-mask-image: radial-gradient(circle 90px at var(--x, -999px) var(--y, -999px), #000 0, #000 89px, transparent 90px); mask-image: radial-gradient(circle 90px at var(--x, -999px) var(--y, -999px), #000 0, #000 89px, transparent 90px); }
 }
+
+/* Theme-Schalter: klein oben rechts, über dem Start-Logo sichtbar. */
+.theme-toggle {
+  position: fixed; z-index: 150; top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
+  width: 38px; height: 38px; border: 1px solid var(--line2); background: var(--bg); color: var(--fg); font-size: 16px; cursor: pointer;
+}
+.theme-toggle:hover { background: var(--fg); color: var(--bg); }

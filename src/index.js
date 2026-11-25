@@ -8,6 +8,7 @@ import "./routes/points.js";
 import "./routes/media.js";
 import "./routes/links.js";
 import "./routes/shared.js";
+import "./routes/hotspots.js";
 import "./routes/lookup.js";
 
 export default {

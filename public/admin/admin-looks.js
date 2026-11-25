@@ -107,6 +107,56 @@ function buildPointList() {
   return holder;
 }
 
+// Hotspots: Punkte auf dem Look-Foto, von denen die Website die Stränge zu den Pieces zieht.
+// Auto-place setzt sie nach Körperzone, danach lassen sie sich per Ziehen feinjustieren.
+function buildHotspotEditor(trace) {
+  const holder = h("div");
+  if (!trace.look_image_url) { holder.append(h("p", { class: "hint" }, "Upload the look photo first.")); return holder; }
+  if (!trace.points.length) { holder.append(h("p", { class: "hint" }, "Add points first — each one gets a hotspot.")); return holder; }
+
+  const auto = autoSpots(trace.points);
+  const spots = {};
+  trace.points.forEach(p => { spots[p.id] = p.hotspot ? { x: p.hotspot.x, y: p.hotspot.y } : auto[p.id]; });
+  let dirty = !trace.points.every(p => p.hotspot);
+
+  const stage = h("div", { class: "hs-stage" }, h("img", { src: trace.look_image_url, alt: "", draggable: false }));
+  const dots = trace.points.map((p, i) => {
+    const dot = h("button", { class: "hs-dot" + (p.category === "commission" ? " org" : ""), title: p.title || CATEGORY_LABELS[p.category], type: "button" }, String(i + 1));
+    const place = () => { dot.style.left = spots[p.id].x + "%"; dot.style.top = spots[p.id].y + "%"; };
+    place();
+    dot.addEventListener("pointerdown", (event) => {
+      dot.setPointerCapture(event.pointerId); event.preventDefault();
+      const move = (e) => {
+        const rect = stage.getBoundingClientRect();
+        spots[p.id] = { x: Math.max(2, Math.min(98, (e.clientX - rect.left) / rect.width * 100)), y: Math.max(2, Math.min(98, (e.clientY - rect.top) / rect.height * 100)) };
+        place(); mark();
+      };
+      const stop = () => { dot.removeEventListener("pointermove", move); dot.removeEventListener("pointerup", stop); dot.removeEventListener("pointercancel", stop); };
+      dot.addEventListener("pointermove", move); dot.addEventListener("pointerup", stop); dot.addEventListener("pointercancel", stop);
+    });
+    stage.append(dot);
+    return { place };
+  });
+
+  const status = h("span", { class: "hint" });
+  const save = h("button", { class: "btn small", type: "button" }, "Save hotspots");
+  const mark = () => { dirty = true; save.classList.add("armed"); status.innerText = "Unsaved changes."; };
+  const autoButton = h("button", { class: "btn small", type: "button", onclick: () => { Object.assign(spots, autoSpots(trace.points)); dots.forEach(d => d.place()); mark(); } }, "Auto-place by body zone");
+  save.addEventListener("click", async () => {
+    try {
+      await api("/api/traces/" + trace.id + "/hotspots", { method: "PUT", body: JSON.stringify({ spots }) });
+      trace.points.forEach(p => { p.hotspot = { ...spots[p.id] }; });
+      dirty = false; save.classList.remove("armed"); status.innerText = ""; setStatus("Hotspots saved.");
+    } catch (error) { setStatus(error.message); alert(error.message); }
+  });
+  if (dirty) { save.classList.add("armed"); status.innerText = "Suggested positions — adjust and save."; }
+
+  holder.append(
+    h("p", { class: "hint" }, "Drag each numbered dot onto its piece in the photo. Without saved positions the website places them by body zone."),
+    stage, h("div", { class: "hs-actions" }, autoButton, save, status));
+  return holder;
+}
+
 async function showTrace(id) {
   app.trace = await api("/api/traces/" + encodeURIComponent(id) + "?admin=1");
   const trace = app.trace;
@@ -184,6 +234,9 @@ async function showTrace(id) {
         ? "Click “Place point”, then click the map. Drag markers to move them."
         : "Start with the commission: click “Place point”, then click the map where the trace begins."),
       buildPointList()),
+    h("section", { class: "section" },
+      h("div", { class: "section-title" }, h("span", { class: "label" }, "Hotspots on the look photo")),
+      buildHotspotEditor(trace)),
     h("section", { class: "section" },
       h("div", { class: "section-title" }, h("span", { class: "label" }, "Use an existing Lost & Found point")),
       h("p", { class: "hint" }, "Use a find location from another look here too. It is the same point: edits apply in every look that uses it."),

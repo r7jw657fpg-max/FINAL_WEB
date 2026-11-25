@@ -77,6 +77,15 @@ add("GET", "/api/traces/:id", async ({ env, params, url, isAdmin }) => {
     pointById[link.point_b].links.push({ id: link.id, point_id: link.point_a, note: link.note });
   });
 
+  // Hotspot-Positionen auf dem Look-Foto (fehlen sie, platziert die Seite automatisch nach Körperzone).
+  // Läuft ohne die Tabelle weiter, solange die Migration 0008 noch nicht angewendet ist.
+  try {
+    const { results: spots } = await env.DB.prepare("SELECT point_id, x, y FROM look_hotspots WHERE trace_id = ?").bind(params.id).all();
+    points.forEach(p => { const s = spots.find(x => x.point_id === p.id); p.hotspot = s ? { x: s.x, y: s.y } : null; });
+  } catch (e) {
+    points.forEach(p => { p.hotspot = null; });
+  }
+
   // Im Admin: wo ein eigener Punkt sonst noch vorkommt (für Hinweise und Warnungen beim Löschen).
   if (asAdmin) {
     const { results: usage } = await env.DB.prepare(
@@ -103,6 +112,7 @@ add("PUT", "/api/traces/:id", async ({ env, params, body }) => {
 
 add("DELETE", "/api/traces/:id", async ({ env, params }) => {
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM look_hotspots WHERE trace_id = ? OR point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM trace_point_refs WHERE trace_id = ? OR point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM point_links WHERE point_a IN (SELECT id FROM points WHERE trace_id = ?) OR point_b IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM workshop_entries WHERE trace_id = ? OR point_id IN (SELECT id FROM points WHERE trace_id = ?)").bind(params.id, params.id),

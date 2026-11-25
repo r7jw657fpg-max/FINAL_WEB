@@ -1,17 +1,33 @@
-/* Gemeinsame Gestaltung: Schwarz/Weiß, dünne Linien, viel Weißraum. */
+/* Gemeinsame Gestaltung: reduziert, dünne Linien. Zwei Themes: Dunkel (Standard der Website) und Hell.
+   Das Theme setzt die Website über data-theme am <html>; der Admin setzt nichts und bleibt hell. */
 :root {
   --bg: #ffffff;
   --fg: #111111;
+  --ink: var(--fg);
   --muted: #7a7a7a;
+  --mute: var(--muted);
   --line: rgba(0, 0, 0, .16);
   --line-strong: #111111;
+  --line2: rgba(10, 10, 10, .6);
   --soft: #f4f4f2;
+  --dot: rgba(10, 10, 10, .1);
+  --glow: rgba(10, 10, 10, 0);
+  --scrim: rgba(255, 255, 255, .96);
   --font: "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --sans: var(--font);
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+[data-theme="light"] { --bg: #fafaf8; }
+[data-theme="dark"] {
+  --bg: #07080a; --fg: #ecece9; --muted: #86878b; --line: rgba(236, 236, 233, .14); --line-strong: rgba(236, 236, 233, .7);
+  --line2: rgba(236, 236, 233, .5); --soft: #121316; --dot: rgba(236, 236, 233, .1); --glow: rgba(236, 236, 233, .55);
+  --scrim: rgba(7, 8, 10, .95);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { font-family: var(--font); font-weight: 300; color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font); font-weight: 300; color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; transition: background .35s ease, color .35s ease; }
 button, input, textarea, select { font: inherit; color: inherit; }
 a { color: inherit; }
 
@@ -42,7 +58,7 @@ button, a, input, select, textarea, [role="button"] { touch-action: manipulation
 /* Bildansicht: Tippen vergrößert (Verschieben per Wischen), nochmal Tippen verkleinert wieder. */
 #lightbox {
   position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, .96); overflow: auto; overscroll-behavior: contain;
+  background: var(--scrim); overflow: auto; overscroll-behavior: contain;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 #lightbox.active { display: flex; }
@@ -51,5 +67,9 @@ button, a, input, select, textarea, [role="button"] { touch-action: manipulation
 #lightbox.zoomed img { max-width: none; max-height: none; width: max(220vw, 1400px); cursor: zoom-out; }
 #lightboxClose {
   position: fixed; top: max(10px, env(safe-area-inset-top)); right: 14px; z-index: 2; width: 44px; height: 44px;
-  background: rgba(255, 255, 255, .9); border: 1px solid var(--line); font-size: 26px; line-height: 1; cursor: pointer;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line2); font-size: 26px; line-height: 1; cursor: pointer;
 }
+
+/* Logo (schwarz auf weiß): hell = Weiß verschwindet per Multiply, dunkel = invertiert, Schwarz verschwindet per Screen. */
+.logo-img { mix-blend-mode: multiply; }
+[data-theme="dark"] .logo-img { filter: invert(1); mix-blend-mode: screen; }

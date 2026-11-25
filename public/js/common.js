@@ -34,12 +34,49 @@ function categoryIconSvg(category, size = 18) {
   return open + '<path d="M16 14V9q0-2.5-2.5-2.5T11 9"/><path d="M16 14 7 24q-1.500 2 1 2h16q2.500 0 1-2z"/></svg>';
 }
 
-// Wie das Detailfenster angeordnet ist: "bottom" = Bottom-Sheet (Handy hochkant),
-// "side" = Seitenleiste (Handy quer), "window" = Fenster im Fenster (Tablet/Desktop).
-function layoutMode() {
-  if (window.matchMedia("(max-height: 500px) and (orientation: landscape)").matches) return "side";
-  if (window.matchMedia("(max-width: 720px)").matches) return "bottom";
-  return "window";
+// Theme: dunkel (Standard) oder hell. ?t=light|dark setzt es, die letzte Wahl bleibt gespeichert.
+// Das Setzen vor dem ersten Zeichnen macht ein kleiner Inline-Schnipsel in den Seiten selbst.
+function setupThemeToggle(button) {
+  button.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("cfm-theme", next); } catch (e) {}
+  });
+}
+
+// Körperzonen für das automatische Platzieren der Hotspots (Prozent des Look-Fotos).
+const ZONE_LABELS = { head: "Head", torso: "Torso", legs: "Legs", feet: "Feet", accessory: "Accessory" };
+const ZONE_RULES = {
+  head: [/cap|hat|beanie|helmet|mütze|kappe|hut/i, 11],
+  torso: [/jacket|sweater|shirt|coat|poncho|blanket|hoodie|vest|top|jumper|pullover/i, 34],
+  legs: [/pants|jeans|trouser|hose|skirt/i, 66],
+  feet: [/shoe|sneaker|boot|sock|schuh/i, 91],
+};
+
+// Zone eines Pieces: im Admin gesetzt, sonst aus dem Titel geraten, sonst die des verlinkten Partners.
+function zoneOf(point, points, depth = 0) {
+  if (point.zone) return point.zone;
+  const name = point.title || "";
+  for (const zone in ZONE_RULES) if (ZONE_RULES[zone][0].test(name)) return zone;
+  if (depth < 1) {
+    for (const link of point.links || []) {
+      const other = points.find(p => p.id === link.point_id);
+      if (other) { const zone = zoneOf(other, points, 1); if (zone !== "accessory") return zone; }
+    }
+  }
+  return "accessory";
+}
+
+// Automatische Hotspot-Positionen für alle Pieces eines Looks: { pointId: { x, y } } in Prozent.
+function autoSpots(points) {
+  const used = {}, out = {};
+  points.forEach((p, i) => {
+    const zone = zoneOf(p, points), k = used[zone] = (used[zone] || 0) + 1;
+    if (zone === "accessory") { out[p.id] = { x: i % 2 ? 78 : 22, y: 46 + (i % 3) * 8 }; return; }
+    const side = k % 2 ? -1 : 1, offset = Math.ceil((k - 1) / 2) * 20;
+    out[p.id] = { x: Math.max(12, Math.min(88, 50 + (k === 1 ? 0 : side * offset))), y: ZONE_RULES[zone][1] + (k > 1 ? 4 : 0) };
+  });
+  return out;
 }
 
 // Die Trace-ID eines Kleidungsstücks ist die GPS-Nummer seines Fundorts.

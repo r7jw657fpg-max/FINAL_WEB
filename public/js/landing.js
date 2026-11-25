@@ -176,6 +176,7 @@ function setupTraceIdForm() {
 }
 
 async function initLanding() {
+  setupThemeToggle(document.getElementById("themeBtn"));
   setupTraceIdForm();
   const [settings, traces] = await Promise.all([api("/api/settings"), api("/api/traces")]);
 

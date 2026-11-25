@@ -1,13 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f4f4f2">
+<meta name="theme-color" content="#07080a">
 <title>Cutting from Memory</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/landing.css">
 <script>
+  // Theme vor dem ersten Zeichnen setzen (Standard dunkel; ?t=light|dark oder die letzte Wahl).
+  try {
+    var q = new URLSearchParams(location.search).get("t"), saved = localStorage.getItem("cfm-theme"), t = q || saved || "dark";
+    if (q) localStorage.setItem("cfm-theme", q);
+    document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
+  } catch (e) { document.documentElement.dataset.theme = "dark"; }
   // Kommt man von einer Unterseite zurück, wird das Start-Logo übersprungen.
   try {
     if (document.referrer && new URL(document.referrer).origin === location.origin) {
@@ -18,6 +24,7 @@
 </head>
 <body>
 <div id="bg"></div>
+<button class="theme-toggle" id="themeBtn" aria-label="Switch theme">◐</button>
 
 <div id="splash" role="button" tabindex="0" aria-label="Enter">
   <div id="splashBase" class="splash-layer"></div>

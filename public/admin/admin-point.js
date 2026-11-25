@@ -5,7 +5,7 @@ function pointPayload(point) {
     category: point.category, title: point.title, text: point.text, item_comment: point.item_comment,
     lng: point.lng, lat: point.lat,
     material: point.material || "", composition: point.composition || "", condition: point.condition || "",
-    found_on: point.found_on || "", status: point.status || "",
+    found_on: point.found_on || "", status: point.status || "", zone: point.zone || "",
   };
 }
 
@@ -181,6 +181,13 @@ function showPoint(pointId) {
     specInput("found_on", "Found on", { type: "date" }),
     specInput("status", "Status", { placeholder: "Found / In progress / Finished", list: "statusList" }),
     h("datalist", { id: "statusList" }, ["Found", "In progress", "Finished"].map(v => h("option", { value: v }))));
+
+  // Körperzone: bestimmt, wo der Hotspot beim automatischen Platzieren auf dem Look-Foto landet.
+  const zone = h("select", {},
+    h("option", { value: "" }, "Automatic (from title)"),
+    ...Object.entries(ZONE_LABELS).map(([value, label]) => h("option", { value, selected: point.zone === value }, label)));
+  zone.addEventListener("change", () => savePoint(point, { zone: zone.value }));
+  specs.append(field("Body zone (hotspot placement)", zone));
 
   const hasWorkshop = point.category === "lost_and_found" || point.category === "commission";
   return h("div", {},

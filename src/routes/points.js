@@ -4,6 +4,7 @@ import { add, json, newId, num, str } from "../lib.js";
 const POINT_CATEGORIES = ["commission", "lost_and_found", "scan"];
 const COMMISSION_TAKEN = { error: "Dieser Trace hat schon einen Commission-Startpunkt." };
 const SPEC_FIELDS = ["material", "composition", "condition", "found_on", "status"];
+const ZONES = ["", "head", "torso", "legs", "feet", "accessory"];
 
 // Nächste Reihenfolge-Nummer in einem Look; zählt eigene und eingebundene Punkte.
 export async function nextPointOrder(env, traceId) {
@@ -32,10 +33,10 @@ add("POST", "/api/traces/:id/points", async ({ env, params, body }) => {
   const id = newId("point");
   const sortOrder = await nextPointOrder(env, params.id);
   await env.DB.prepare(
-    "INSERT INTO points (id, trace_id, category, title, text, item_comment, lng, lat, sort_order, created_at, material, composition, condition, found_on, status) " +
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO points (id, trace_id, category, title, text, item_comment, lng, lat, sort_order, created_at, material, composition, condition, found_on, status, zone) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).bind(id, params.id, category, str(data.title), str(data.text), str(data.item_comment), lng, lat, sortOrder, new Date().toISOString(),
-    ...SPEC_FIELDS.map(field => str(data[field]))).run();
+    ...SPEC_FIELDS.map(field => str(data[field])), ZONES.includes(data.zone) ? data.zone : "").run();
   return json({ id, sort_order: sortOrder }, 201);
 }, { admin: true });
 
@@ -63,11 +64,12 @@ add("PUT", "/api/points/:id", async ({ env, params, body }) => {
 
   await env.DB.prepare(
     "UPDATE points SET category = ?, title = ?, text = ?, item_comment = ?, lng = ?, lat = ?, " +
-    "material = ?, composition = ?, condition = ?, found_on = ?, status = ? WHERE id = ?"
+    "material = ?, composition = ?, condition = ?, found_on = ?, status = ?, zone = ? WHERE id = ?"
   ).bind(
     category, str(data.title, existing.title), str(data.text, existing.text), str(data.item_comment, existing.item_comment),
     num(data.lng, existing.lng), num(data.lat, existing.lat),
-    ...SPEC_FIELDS.map(field => str(data[field], existing[field])), params.id
+    ...SPEC_FIELDS.map(field => str(data[field], existing[field])),
+    data.zone === undefined ? existing.zone : (ZONES.includes(data.zone) ? data.zone : ""), params.id
   ).run();
   return json({ ok: true });
 }, { admin: true });
@@ -76,6 +78,7 @@ add("DELETE", "/api/points/:id", async ({ env, params }) => {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM point_links WHERE point_a = ? OR point_b = ?").bind(params.id, params.id),
     env.DB.prepare("DELETE FROM trace_point_refs WHERE point_id = ?").bind(params.id),
+    env.DB.prepare("DELETE FROM look_hotspots WHERE point_id = ?").bind(params.id),
     env.DB.prepare("DELETE FROM workshop_entries WHERE point_id = ?").bind(params.id),
     env.DB.prepare("DELETE FROM point_media WHERE point_id = ?").bind(params.id),
     env.DB.prepare("DELETE FROM points WHERE id = ?").bind(params.id),

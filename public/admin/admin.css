@@ -73,3 +73,12 @@ input[type=file] { font-size: 11px; width: 100%; }
 .admin-pin.selected svg { stroke: #fff; }
 
 @media (max-width: 720px) { #sidebar { width: auto; right: 14px; top: auto; height: 55vh; } }
+
+/* Hotspot-Editor: Look-Foto mit ziehbaren Punkten */
+.hs-stage { position: relative; width: min(100%, 320px); aspect-ratio: 3 / 4; border: 1px solid var(--line); background: var(--soft); touch-action: none; user-select: none; }
+.hs-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.hs-dot { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 1px solid #fff; background: rgba(0, 0, 0, .65); color: #fff; font-size: 11px; padding: 0; cursor: grab; touch-action: none; }
+.hs-dot.org { background: #111; box-shadow: 0 0 0 2px #fff; }
+.hs-dot:active { cursor: grabbing; }
+.hs-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.hs-actions .hint { margin: 0; }
